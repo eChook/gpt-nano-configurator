@@ -1,8 +1,14 @@
 <template>
   <div class="background">
-    <p><button @click="connect">Request Serial Port</button></p>
-    <button v-if="connected" @click="serialRequestHWVersion">
+    <div v-if="!connected">
+      <p><button @click="connect">Connect</button></p>
+    </div>
+    <button v-if="connected" @click="serialRequestFloatCal">
       Fetch Current Calibration
+    </button>
+    <button v-if="connected" @click="serialToggleData">Toggle Data</button>
+    <button v-if="connected" @click="inputBuffer = new Uint8Array(0)">
+      Clear Data
     </button>
     <h2>
       {{
@@ -16,66 +22,124 @@
     <div v-if="connected">
       <div class="values-container">
         <div class="value-container">
-          Reference Voltage:
+          <div class="value-title">Reference Voltage:</div>
           <div class="live-value">{{ eChook.referenceVoltage.value }}</div>
+          <div class="live-calibration">
+            {{ eChook.referenceVoltage.calibration.value }}
+          </div>
         </div>
         <div class="value-container">
-          Total Voltage:
+          <div class="value-title">Total Voltage:</div>
           <div class="live-value">{{ eChook.voltage.value }}</div>
+          <div class="live-calibration">
+            {{ eChook.voltage.calibration.value }}
+          </div>
         </div>
         <div class="value-container">
-          Lower Voltage:
+          <div class="value-title">Lower Voltage:</div>
           <div class="live-value">{{ eChook.voltageLower.value }}</div>
+          <div class="live-calibration">
+            {{ eChook.voltageLower.calibration.value }}
+          </div>
         </div>
         <div class="value-container">
-          Current:
+          <div class="value-title">Current:</div>
           <div class="live-value">{{ eChook.current.value }}</div>
+          <div class="live-calibration">
+            {{ eChook.current.calibration.value }}
+          </div>
         </div>
         <div class="value-container">
-          Motor RPM:
+          <div class="value-title">Motor RPM:</div>
           <div class="live-value">{{ eChook.rpm.value }}</div>
+          <div class="live-calibration">
+            {{ eChook.rpm.calibration.magnets.value }}
+          </div>
         </div>
         <div class="value-container">
-          Speed:
+          <div class="value-title">Speed:</div>
           <div class="live-value">{{ eChook.speed.value }}</div>
+          <div class="live-calibration">
+            {{ eChook.speed.calibration.magnets.value }}
+          </div>
+          <div class="live-calibration">
+            {{ eChook.speed.calibration.circumference.value }}
+          </div>
         </div>
         <div class="value-container">
-          Throttle Input:
+          <div class="value-title">Throttle Input:</div>
           <div class="live-value">{{ eChook.throttleInput.value }}</div>
+          <div class="live-calibration">
+            {{ eChook.throttleInput.calibration.lowThreshold.value }}
+          </div>
+          <div class="live-calibration">
+            {{ eChook.throttleInput.calibration.highThreshold.value }}
+          </div>
         </div>
         <div class="value-container">
-          Throttle Output:
+          <div class="value-title">Throttle Output:</div>
           <div class="live-value">{{ eChook.throttleActual.value }}</div>
+          <div class="live-calibration">
+            {{ eChook.throttleActual.calibration.value }}
+          </div>
         </div>
         <div class="value-container">
-          Thermistor 1:
+          <div class="value-title">Thermistor 1:</div>
           <div class="live-value">{{ eChook.temp1.value }}</div>
+          <div class="live-calibration">
+            {{ eChook.temp1.calibration.A.value }}
+          </div>
+          <div class="live-calibration">
+            {{ eChook.temp1.calibration.B.value }}
+          </div>
+          <div class="live-calibration">
+            {{ eChook.temp1.calibration.C.value }}
+          </div>
         </div>
         <div class="value-container">
-          Thermistor 2:
+          <div class="value-title">Thermistor 2:</div>
           <div class="live-value">{{ eChook.temp2.value }}</div>
+          <div class="live-calibration">
+            {{ eChook.temp2.calibration.A.value }}
+          </div>
+          <div class="live-calibration">
+            {{ eChook.temp2.calibration.B.value }}
+          </div>
+          <div class="live-calibration">
+            {{ eChook.temp2.calibration.C.value }}
+          </div>
         </div>
         <div class="value-container">
-          Temperature PCB:
+          <div class="value-title">Temperature PCB:</div>
           <div class="live-value">{{ eChook.temp3.value }}</div>
+          <div class="live-calibration">
+            {{ eChook.temp3.calibration.value }}
+          </div>
         </div>
         <div class="value-container">
-          Launch Mode Button:
+          <div class="value-title">Launch Mode Button:</div>
           <div class="live-value">{{ eChook.launchMode.value }}</div>
+          <div class="live-calibration">noCal</div>
         </div>
         <div class="value-container">
-          Cycle View Button:
+          <div class="value-title">Cycle View Button:</div>
           <div class="live-value">{{ eChook.cycleView.value }}</div>
+          <div class="live-calibration">noCal</div>
         </div>
         <div class="value-container">
-          Gear Ratio:
+          <div class="value-title">Gear Ratio:</div>
           <div class="live-value">{{ eChook.gearRatio.value }}</div>
+          <div class="live-calibration">noCal</div>
         </div>
         <div class="value-container">
-          Brake Switch:
+          <div class="value-title">Brake Switch:</div>
           <div class="live-value">{{ eChook.brakePressed.value }}</div>
+          <div class="live-calibration">
+            {{ eChook.brakePressed.calibration.value }}
+          </div>
         </div>
       </div>
+      <div class="serial-view">{{ inputBuffer }}</div>
     </div>
   </div>
 </template>
@@ -111,11 +175,11 @@ export default {
       writer: null,
       running: true,
       inputBuffer: null,
-      serialCalibrationi: {
+      serialCalibration: {
         dataPacketLength: 5,
         binaryCalArrayLength: 7,
         binaryCalIdentifier: "b",
-        floatCalArrayLength: 60,
+        floatCalArrayLength: 83,
         floatCalIdentifier: "f",
         btNameArrayLength: 13,
         btNameIdentifier: "n",
@@ -162,6 +226,7 @@ export default {
           value: null,
           identifier: "i",
           calibration: {
+            value: null,
             changed: 0,
             old: null,
             floatIndex: 6,
@@ -171,6 +236,7 @@ export default {
           value: null,
           identifier: "v",
           calibration: {
+            value: null,
             changed: 0,
             old: null,
             floatIndex: 4,
@@ -180,6 +246,7 @@ export default {
           value: null,
           identifier: "w",
           calibration: {
+            value: null,
             changed: 0,
             old: null,
             floatIndex: 5,
@@ -190,11 +257,13 @@ export default {
           identifier: "t",
           calibration: {
             lowThreshold: {
+              value: null,
               changed: 0,
               old: null,
               floatIndex: 13,
             },
             highThreshold: {
+              value: null,
               changed: 0,
               old: null,
               floatIndex: 14,
@@ -205,6 +274,7 @@ export default {
           value: null,
           identifier: "d",
           calibration: {
+            value: null,
             changed: 0,
             old: null,
             floatIndex: null,
@@ -215,16 +285,19 @@ export default {
           identifier: "a",
           calibration: {
             A: {
+              value: null,
               changed: 0,
               old: null,
               floatIndex: 7,
             },
             B: {
+              value: null,
               changed: 0,
               old: null,
               floatIndex: 8,
             },
             C: {
+              value: null,
               changed: 0,
               old: null,
               floatIndex: 9,
@@ -236,16 +309,19 @@ export default {
           identifier: "b",
           calibration: {
             A: {
+              value: null,
               changed: 0,
               old: null,
               floatIndex: 10,
             },
             B: {
+              value: null,
               changed: 0,
               old: null,
               floatIndex: 11,
             },
             C: {
+              value: null,
               changed: 0,
               old: null,
               floatIndex: 12,
@@ -256,6 +332,7 @@ export default {
           value: null,
           identifier: "c",
           calibration: {
+            value: null,
             changed: 0,
             old: null,
             floatIndex: null, // no calibration
@@ -265,6 +342,7 @@ export default {
           value: null,
           identifier: "L",
           calibration: {
+            value: null,
             changed: 0,
             old: null,
             floatIndex: null,
@@ -274,6 +352,7 @@ export default {
           value: null,
           identifier: "C",
           calibration: {
+            value: null,
             changed: 0,
             old: null,
             floatIndex: null,
@@ -283,6 +362,7 @@ export default {
           value: null,
           identifier: "r",
           calibration: {
+            value: null,
             changed: 0,
             old: null,
             floatIndex: null,
@@ -292,6 +372,7 @@ export default {
           value: null,
           identifier: "B",
           calibration: {
+            value: null,
             changed: 0,
             old: null,
             floatIndex: null,
@@ -301,6 +382,7 @@ export default {
           value: null,
           identifier: "V",
           calibration: {
+            value: null,
             changed: 0,
             old: null,
             floatIndex: null,
@@ -343,6 +425,7 @@ export default {
         const { value, done } = await this.reader.read();
         // The value is returned as Uint8 Arrays of random size. First requirement is to concat previous buffer with new incoming data
         // to form a new input buffer array:
+        // console.log(value);
         this.inputBuffer = this.concatenate(this.inputBuffer, value);
         // Now work backwards through the buffer to identify any eChook protocol data packets:
         let found = 1;
@@ -352,6 +435,7 @@ export default {
             //Only look if input buffer is long enough to contain at least one packet.
             for (let i = this.inputBuffer.length - 1; i >= 0; i--) {
               if (String.fromCharCode(this.inputBuffer[i]) === "}") {
+                // Looking for eChook data Packet
                 //End brace for data packet found
                 if (String.fromCharCode(this.inputBuffer[i - 4]) === "{") {
                   // Packet Found
@@ -365,6 +449,44 @@ export default {
                     this.inputBuffer.slice(i + 1, this.inputBuffer.length)
                   ); // Remove the interpreted packet from the buffer
                   i = -1; // Exit the for loop and search again from the top.
+                }
+              }
+
+              //Looking for Calibration Packet
+              if (String.fromCharCode(this.inputBuffer[i]) === "]") {
+                //End brace for calibration packet found
+                // Now check for float Cal
+                if (
+                  this.inputBuffer.length >
+                  this.serialCalibration.floatCalArrayLength
+                ) {
+                  if (
+                    String.fromCharCode(
+                      this.inputBuffer[
+                        i - this.serialCalibration.floatCalArrayLength + 1
+                      ]
+                    ) === "["
+                  ) {
+                    console.log("Float Calibration Packet Found");
+                    // Packet Found, verify with ID character:
+                    if (
+                      String.fromCharCode(
+                        this.inputBuffer[
+                          i - this.serialCalibration.floatCalArrayLength + 2
+                        ]
+                      ) === "f"
+                    ) {
+                      let calArray = new Uint8Array();
+                      calArray = this.inputBuffer.slice();
+                      //   this.eChookDataDecode(id, byte1, byte2);
+                      found = 1;
+                      this.inputBuffer = this.concatenate(
+                        this.inputBuffer.slice(0, i - 4),
+                        this.inputBuffer.slice(i + 1, this.inputBuffer.length)
+                      ); // Remove the interpreted packet from the buffer
+                      i = -1; // Exit the for loop and search again from the top.
+                    }
+                  }
                 }
               }
             }
@@ -381,10 +503,10 @@ export default {
               }
               if (!startBits) {
                 //Clear all but last 4 bytes of buffer
-                this.inputBuffer = this.inputBuffer.slice(
-                  this.inputBuffer.length - 5,
-                  this.inputBuffer.length
-                );
+                // this.inputBuffer = this.inputBuffer.slice(
+                //   this.inputBuffer.length - 5,
+                //   this.inputBuffer.length
+                // );
               }
             }
           }
@@ -461,33 +583,40 @@ export default {
       this.writer.write(data);
       this.writer.releaseLock();
     },
-    serialRequestHWVersion(){
-        let data = new Uint8Array(2);
-        let text = "gh"; // Request Hardware version
-        data[0] = text.charCodeAt(0);
-        data[1] = text.charCodeAt(1);
-        this.serialWrite(data);
+    serialRequestHWVersion() {
+      let data = new Uint8Array(2);
+      let text = "gh"; // Request Hardware version
+      data[0] = text.charCodeAt(0);
+      data[1] = text.charCodeAt(1);
+      this.serialWrite(data);
     },
-    serialRequestSWVersion(){
-        let data = new Uint8Array(2);
-        let text = "gs"; // Request Software version
-        data[0] = text.charCodeAt(0);
-        data[1] = text.charCodeAt(1);
-        this.serialWrite(data);
+    serialRequestSWVersion() {
+      let data = new Uint8Array(2);
+      let text = "gs"; // Request Software version
+      data[0] = text.charCodeAt(0);
+      data[1] = text.charCodeAt(1);
+      this.serialWrite(data);
     },
-    serialRequestBinaryCal(){
-        let data = new Uint8Array(2);
-        let text = "gb"; // Request  Binary cal data
-        data[0] = text.charCodeAt(0);
-        data[1] = text.charCodeAt(1);
-        this.serialWrite(data);
+    serialRequestBinaryCal() {
+      let data = new Uint8Array(2);
+      let text = "gb"; // Request  Binary cal data
+      data[0] = text.charCodeAt(0);
+      data[1] = text.charCodeAt(1);
+      this.serialWrite(data);
     },
-    serialRequestFloatCal(){
-        let data = new Uint8Array(2);
-        let text = "gf"; // Request Float cal data
-        data[0] = text.charCodeAt(0);
-        data[1] = text.charCodeAt(1);
-        this.serialWrite(data);
+    serialRequestFloatCal() {
+      let data = new Uint8Array(2);
+      let text = "gf"; // Request Float cal data
+      data[0] = text.charCodeAt(0);
+      data[1] = text.charCodeAt(1);
+      this.serialWrite(data);
+    },
+    serialToggleData() {
+      let data = new Uint8Array(2);
+      let text = "gd"; // Request Float cal data
+      data[0] = text.charCodeAt(0);
+      data[1] = text.charCodeAt(1);
+      this.serialWrite(data);
     },
   },
 };
@@ -501,5 +630,44 @@ export default {
   width: 100vw;
   height: Calc(100vh - 70px);
   background-color: #a0a0a0d0;
+  overflow-y: scroll;
+}
+.serial-view {
+  background-color: #f9f9f9;
+  height: 30vh;
+  width: 80vw;
+  margin: 30px auto;
+  padding: 20px;
+  word-wrap: break-word;
+  overflow: scroll;
+}
+.values-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.value-container {
+  display: flex;
+  flex-direction: row;
+  width: 70vw;
+  margin: 5px auto;
+  padding: 10px 20px;
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  border: solid 2px #f9f9f9;
+}
+
+.value-container:hover {
+  border: solid 2px #e71b64;
+}
+
+.value-title {
+  font-size: 1.1em;
+  padding-right: 15px;
+  vertical-align: middle;
+}
+
+.live-value {
+  vertical-align: middle;
 }
 </style>
