@@ -1,16 +1,14 @@
 <template>
   <div class="background">
-    <div v-if="!connected">
+    <div class="disconnected overlay" v-if="!connected">
+        <div class="info-large">Plug in your eChook GPT or connect via Bluetooth, then:</div>
       <p><button @click="connect">Connect</button></p>
     </div>
-    <button v-if="connected" @click="serialRequestFloatCal">
+    <!-- <button v-if="connected" @click="serialRequestFloatCal">
       Fetch Current Calibration
-    </button>
-    <button v-if="connected" @click="serialToggleData">Toggle Data</button>
-    <button v-if="connected" @click="inputBuffer = new Uint8Array(0)">
-      Clear Data
-    </button>
-    <h2>
+    </button> -->
+    <!-- <button v-if="connected" @click="serialToggleData">Toggle Data</button> -->
+    <!-- <h2>
       {{
         connected
           ? waitingForData
@@ -18,146 +16,38 @@
             : "Connected"
           : "Disconnected"
       }}
-    </h2>
+    </h2> -->
     <div v-if="connected">
       <div class="values-container">
-        <div class="value-container">
-          <div class="value-title">Reference Voltage:</div>
-          <div class="live-value">{{ eChook.referenceVoltage.value }}</div>
-          <div class="live-calibration">
-            {{ eChook.referenceVoltage.calibration.value }}
+        <template v-for="item in eChook" v-bind:key="item">
+          <div v-if="item.title" class="value-container">
+            <div class="value-title">{{ item.title }}:</div>
+            <div v-if="item.value != null" class="live-value">
+              <!-- <div class="title">Live Data:</div> -->
+              {{ item.value }} {{ item.units }}
+            </div>
+            <!-- <div v-if="item.calibration"> -->
+            <template v-for="cal in item.calibration" v-bind:key="cal">
+              <div v-if="cal.value != null" class="live-calibration">
+                <div class="title">{{ cal.name }}:</div>
+                <input class="cal-input" type="number" v-model="cal.value" />
+                <div>{{ cal.unit }}</div>
+                <!-- {{ cal.value }}  -->
+              </div>
+            </template>
+            <!-- </div> -->
           </div>
-        </div>
-        <div class="value-container">
-          <div class="value-title">Total Voltage:</div>
-          <div class="live-value">{{ eChook.voltage.value }}</div>
-          <div class="live-calibration">
-            {{ eChook.voltage.calibration.value }}
-          </div>
-        </div>
-        <div class="value-container">
-          <div class="value-title">Lower Voltage:</div>
-          <div class="live-value">{{ eChook.voltageLower.value }}</div>
-          <div class="live-calibration">
-            {{ eChook.voltageLower.calibration.value }}
-          </div>
-        </div>
-        <div class="value-container">
-          <div class="value-title">Current:</div>
-          <div class="live-value">{{ eChook.current.value }}</div>
-          <div class="live-calibration">
-            {{ eChook.current.calibration.value }}
-          </div>
-        </div>
-        <div class="value-container">
-          <div class="value-title">Motor RPM:</div>
-          <div class="live-value">{{ eChook.rpm.value }}</div>
-          <div class="live-calibration">
-            {{ eChook.rpm.calibration.magnets.value }}
-          </div>
-        </div>
-        <div class="value-container">
-          <div class="value-title">Speed:</div>
-          <div class="live-value">{{ eChook.speed.value }}</div>
-          <div class="live-calibration">
-            {{ eChook.speed.calibration.magnets.value }}
-          </div>
-          <div class="live-calibration">
-            {{ eChook.speed.calibration.circumference.value }}
-          </div>
-        </div>
-        <div class="value-container">
-          <div class="value-title">Throttle Input:</div>
-          <div class="live-value">{{ eChook.throttleInput.value }}</div>
-          <div class="live-calibration">
-            {{ eChook.throttleInput.calibration.lowThreshold.value }}
-          </div>
-          <div class="live-calibration">
-            {{ eChook.throttleInput.calibration.highThreshold.value }}
-          </div>
-        </div>
-        <div class="value-container">
-          <div class="value-title">Throttle Output:</div>
-          <div class="live-value">{{ eChook.throttleActual.value }}</div>
-          <div class="live-calibration">
-            {{ eChook.throttleActual.calibration.value }}
-          </div>
-        </div>
-        <div class="value-container">
-          <div class="value-title">Thermistor 1:</div>
-          <div class="live-value">{{ eChook.temp1.value }}</div>
-          <div class="live-calibration">
-            {{ eChook.temp1.calibration.A.value }}
-          </div>
-          <div class="live-calibration">
-            {{ eChook.temp1.calibration.B.value }}
-          </div>
-          <div class="live-calibration">
-            {{ eChook.temp1.calibration.C.value }}
-          </div>
-        </div>
-        <div class="value-container">
-          <div class="value-title">Thermistor 2:</div>
-          <div class="live-value">{{ eChook.temp2.value }}</div>
-          <div class="live-calibration">
-            {{ eChook.temp2.calibration.A.value }}
-          </div>
-          <div class="live-calibration">
-            {{ eChook.temp2.calibration.B.value }}
-          </div>
-          <div class="live-calibration">
-            {{ eChook.temp2.calibration.C.value }}
-          </div>
-        </div>
-        <div class="value-container">
-          <div class="value-title">Temperature PCB:</div>
-          <div class="live-value">{{ eChook.temp3.value }}</div>
-          <div class="live-calibration">
-            {{ eChook.temp3.calibration.value }}
-          </div>
-        </div>
-        <div class="value-container">
-          <div class="value-title">Launch Mode Button:</div>
-          <div class="live-value">{{ eChook.launchMode.value }}</div>
-          <div class="live-calibration">noCal</div>
-        </div>
-        <div class="value-container">
-          <div class="value-title">Cycle View Button:</div>
-          <div class="live-value">{{ eChook.cycleView.value }}</div>
-          <div class="live-calibration">noCal</div>
-        </div>
-        <div class="value-container">
-          <div class="value-title">Gear Ratio:</div>
-          <div class="live-value">{{ eChook.gearRatio.value }}</div>
-          <div class="live-calibration">noCal</div>
-        </div>
-        <div class="value-container">
-          <div class="value-title">Brake Switch:</div>
-          <div class="live-value">{{ eChook.brakePressed.value }}</div>
-          <div class="live-calibration">
-            {{ eChook.brakePressed.calibration.value }}
-          </div>
-        </div>
+        </template>
       </div>
-      <div class="serial-view">{{ inputBuffer }}</div>
     </div>
   </div>
 </template>
 
 <script>
-/* eslint @typescript-eslint/no-var-requires: "off" */
-// var util = require("util");
-import util from "util";
-
 export default {
   data() {
     return {
       dataIn: "Starting String",
-      //   port: navigator.serial.port,
-      //   decoder: new util.TextDecoderStream(),
-      //   inputDone: navigator.port.readable,
-      //   inputStream: util.TextDecoder.decoder.readable,
-      //   reader: 0,
       hasSerial: 0,
       connected: false,
       waitingForData: true,
@@ -188,21 +78,46 @@ export default {
         other: {
           identifier: null,
           transmitInterval: null,
+          transmitIntervalOld: null,
           useHardcoded: null,
           product: null,
           swVersion: null,
         },
+        transmitInterval: {
+          title: "Data Transmit Interval",
+          precision: 0,
+          units: "ms",
+          identifier: null,
+          calibration: {
+            interval: {
+              name: "Interval",
+              units: "ms",
+              value: null,
+              floatIndex: 0,
+              changed: 0,
+              old: null,
+            },
+          },
+        },
         speed: {
+          title: "Speed",
+          precision: 2,
+          units: "m/s",
           value: null,
           identifier: "s",
           calibration: {
             magnets: {
+              name: "Magnets",
+              precision: 0,
               value: null,
               floatIndex: 1,
               changed: 0,
               old: null,
             },
             circumference: {
+              name: "Circumference",
+              unit: "meters",
+              precision: 2,
               value: null,
               floatIndex: 15,
               changed: 0,
@@ -211,10 +126,14 @@ export default {
           },
         },
         rpm: {
+          title: "Motor RPM",
+          precision: 2,
+          units: "RPM",
           value: null,
           identifier: "m",
           calibration: {
             magnets: {
+              name: "Magnets",
               value: null,
               floatIndex: 2,
               changed: 0,
@@ -223,47 +142,77 @@ export default {
           },
         },
         current: {
+          title: "Current",
+          precision: 2,
+          units: "A",
           value: null,
           identifier: "i",
           calibration: {
-            value: null,
-            changed: 0,
-            old: null,
-            floatIndex: 6,
+            multiplier: {
+              name: "Scaling Factor",
+              precision: 2,
+              value: null,
+              changed: 0,
+              old: null,
+              floatIndex: 6,
+            },
           },
         },
         voltage: {
+          title: "Voltage (total)",
+          precision: 2,
+          units: "V",
           value: null,
           identifier: "v",
           calibration: {
-            value: null,
-            changed: 0,
-            old: null,
-            floatIndex: 4,
+            multiplier: {
+              name: "Scaling Factor",
+              precision: 2,
+              value: null,
+              changed: 0,
+              old: null,
+              floatIndex: 4,
+            },
           },
         },
         voltageLower: {
+          title: "Voltge (lower)",
+          precision: 2,
+          units: "V",
           value: null,
           identifier: "w",
           calibration: {
-            value: null,
-            changed: 0,
-            old: null,
-            floatIndex: 5,
+            multiplier: {
+              name: "Scaling Factor",
+              precision: 2,
+              value: null,
+              changed: 0,
+              old: null,
+              floatIndex: 5,
+            },
           },
         },
         throttleInput: {
+          title: "Throttle Input",
+          precision: 2,
+          units: "V",
           value: null,
           identifier: "t",
           calibration: {
             lowThreshold: {
+              name: "Low Threshold",
+              units: "Volts",
               value: null,
+              precision: 2,
               changed: 0,
               old: null,
               floatIndex: 13,
             },
             highThreshold: {
+              name: "High Threshold",
+              units: "Volts",
               value: null,
+              precision: 2,
               changed: 0,
               old: null,
               floatIndex: 14,
@@ -271,32 +220,47 @@ export default {
           },
         },
         throttleActual: {
+          title: "Throttle Output",
+          precision: 1,
+          units: "%",
           value: null,
           identifier: "d",
           calibration: {
-            value: null,
-            changed: 0,
-            old: null,
-            floatIndex: null,
+            multiplier: {
+              value: null, // Not used, but present to keep the object iterable in the template
+              precision: 1,
+              changed: 0,
+              old: null,
+              floatIndex: null,
+            },
           },
         },
         temp1: {
+          title: "Temperature 1",
+          precision: 0,
+          units: "°c",
           value: null,
           identifier: "a",
           calibration: {
             A: {
+              name: "Cal A",
+              precision: 7,
               value: null,
               changed: 0,
               old: null,
               floatIndex: 7,
             },
             B: {
+              name: "Cal B",
+              precision: 7,
               value: null,
               changed: 0,
               old: null,
               floatIndex: 8,
             },
             C: {
+              name: "Cal C",
+              precision: 7,
               value: null,
               changed: 0,
               old: null,
@@ -305,22 +269,31 @@ export default {
           },
         },
         temp2: {
+          title: "Temperature 2",
+          precision: 0,
+          units: "°c",
           value: null,
           identifier: "b",
           calibration: {
             A: {
+              name: "Cal A",
+              precision: 7,
               value: null,
               changed: 0,
               old: null,
               floatIndex: 10,
             },
             B: {
+              name: "Cal B",
+              precision: 7,
               value: null,
               changed: 0,
               old: null,
               floatIndex: 11,
             },
             C: {
+              name: "Cal C",
+              precision: 7,
               value: null,
               changed: 0,
               old: null,
@@ -329,63 +302,96 @@ export default {
           },
         },
         temp3: {
+          title: "Temperature eChook",
+          precision: 0,
+          units: "°c",
           value: null,
           identifier: "c",
           calibration: {
-            value: null,
-            changed: 0,
-            old: null,
-            floatIndex: null, // no calibration
+            placeholder: {
+              value: null,
+              changed: 0,
+              old: null,
+              floatIndex: null, // no calibration
+            },
           },
         },
         launchMode: {
+          title: "Launch Mode Button",
+          precision: 0,
+          units: null,
           value: null,
           identifier: "L",
           calibration: {
-            value: null,
-            changed: 0,
-            old: null,
-            floatIndex: null,
+            placeholder: {
+              value: null,
+              changed: 0,
+              old: null,
+              floatIndex: null, // no calibration
+            },
           },
         },
         cycleView: {
+          title: "Next Screen Button",
+          precision: 0,
+          units: null,
           value: null,
           identifier: "C",
           calibration: {
-            value: null,
-            changed: 0,
-            old: null,
-            floatIndex: null,
+            placeholder: {
+              value: null,
+              changed: 0,
+              old: null,
+              floatIndex: null, // no calibration
+            },
           },
         },
         gearRatio: {
+          title: "Gear Ratio",
+          precision: 2,
+          units: null,
           value: null,
           identifier: "r",
           calibration: {
-            value: null,
-            changed: 0,
-            old: null,
-            floatIndex: null,
+            placeholder: {
+              value: null,
+              changed: 0,
+              old: null,
+              floatIndex: null, // no calibration
+            },
           },
         },
         brakePressed: {
+          title: "Brake Switch",
+          precision: 0,
+          units: null,
           value: null,
           identifier: "B",
           calibration: {
-            value: null,
-            changed: 0,
-            old: null,
-            floatIndex: null,
+            inverted: {
+              name: "Inverted",
+              value: null,
+              changed: 0,
+              old: null,
+              floatIndex: null, // no calibration
+            },
           },
         },
         referenceVoltage: {
+          title: "Reference Voltage",
+          precision: 2,
+          units: "V",
           value: null,
           identifier: "V",
           calibration: {
-            value: null,
-            changed: 0,
-            old: null,
-            floatIndex: null,
+            voltage: {
+              name: "Voltage",
+              units: "Volts",
+              value: null,
+              changed: 0,
+              old: null,
+              floatIndex: null, // no calibration
+            },
           },
         },
       },
@@ -476,14 +482,22 @@ export default {
                         ]
                       ) === "f"
                     ) {
+                      // Pull the float data out into an array:
                       let calArray = new Uint8Array();
-                      calArray = this.inputBuffer.slice();
-                      //   this.eChookDataDecode(id, byte1, byte2);
+                      calArray = this.inputBuffer.slice(
+                        i - this.serialCalibration.floatCalArrayLength + 3,
+                        i
+                      );
+                      console.log(`Float Array Length: ${calArray.length}`);
+                      console.log(`Float Array Identified as: ${calArray}`);
+                      this.eChookFloatCalDecode(calArray);
                       found = 1;
+
+                      // Remove the interpreted packet from the buffer
                       this.inputBuffer = this.concatenate(
                         this.inputBuffer.slice(0, i - 4),
                         this.inputBuffer.slice(i + 1, this.inputBuffer.length)
-                      ); // Remove the interpreted packet from the buffer
+                      );
                       i = -1; // Exit the for loop and search again from the top.
                     }
                   }
@@ -527,7 +541,10 @@ export default {
       return result;
     },
     eChookDataDecode(id, byte1, byte2) {
-      this.waitingForData = 0;
+      if (this.waitingForData) {
+        this.waitingForData = 0;
+        this.serialRequestFloatCal();
+      }
       let value = 0;
       id = String.fromCharCode(id);
       //Decode Numbers:
@@ -570,6 +587,40 @@ export default {
       for (let i in this.eChook) {
         if (this.eChook[i].identifier === id) {
           this.eChook[i].value = value.toFixed(2);
+        }
+      }
+    },
+    eChookFloatCalDecode(calArray) {
+      let view = new DataView(calArray.buffer);
+
+      for (
+        let i = 0;
+        i < this.serialCalibration.floatCalArrayLength - 5;
+        i = i + 4
+      ) {
+        //   let floatBuff = calArray.slice(i, i+4);
+        //   let view = new DataView(floatBuff.buffer);
+        let output = view.getFloat32(i, 1);
+        console.log(`Float ${i / 4} read as ${output}`);
+
+        //   Now a long winded asign calibration routine.
+        let index = i / 4;
+
+        // new assignment routine
+        for (let item in this.eChook) {
+          console.log(`Looking in ${this.eChook[item].title}`);
+          let tempChook = this.eChook[item];
+          if ({}.hasOwnProperty.call(this.eChook[item], "calibration")) {
+            for (let cal in tempChook.calibration) {
+              let c = tempChook.calibration[cal];
+              console.log(`Stringified: ${JSON.stringify(c)}`);
+              console.log(`Checking index ${tempChook.title}, ${c.name}`);
+              if (c.floatIndex === index) {
+                c.value = output.toFixed(c.precision);
+                c.old = c.value;
+              }
+            }
+          }
         }
       }
     },
@@ -623,15 +674,57 @@ export default {
 </script>
 
 <style lang="scss">
+div {
+  // border-radius: 5%;
+  // border: solid lightblue 1px;
+}
+
 .background {
+  padding: 10px;
+  margin: 0;
   position: fixed;
   top: 70px;
   left: 0px;
   width: 100vw;
   height: Calc(100vh - 70px);
-  background-color: #a0a0a0d0;
+  //   background-color: #3f729b;
   overflow-y: scroll;
+  //Gradient
+  background: #007aa5;
+  background: linear-gradient(to bottom, #007aa5 0%, #006b96 100%);
+  background: -webkit-gradient(
+    linear,
+    left top,
+    left bottom,
+    color-stop(0%, #007aa5),
+    color-stop(100%, #006b96)
+  );
+  background: -webkit-linear-gradient(top, #007aa5 0%, #006b96 100%);
+  background: -moz-linear-gradient(top, #007aa5 0%, #006b96 100%);
+  background: -o-linear-gradient(top, #007aa5 0%, #006b96 100%);
+  background: -ms-linear-gradient(top, #007aa5 0%, #006b96 100%);
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#007AA5', endColorstr='#006B96', GradientType=0);
+  border: 1px solid #005c87;
+  box-shadow: inset 0 1px 0 #0f89b4;
+  -webkit-box-shadow: inset 0 1px 0 #0f89b4;
+  -moz-box-shadow: inset 0 1px 0 #0f89b4;
 }
+
+.overlay{
+    // position: fixed;
+    
+    text-align: center;
+    margin: 150px auto;
+    // left: 10vw;
+    height: 20vh;
+    width: 80vw;
+    background-image: linear-gradient(135deg, #f9f9f9 10%, #e2e2e2 100%);
+    border: solid 2px #1c2331;
+    border-radius: 10px;
+    padding: 20px 0;
+
+}
+
 .serial-view {
   background-color: #f9f9f9;
   height: 30vh;
@@ -649,25 +742,72 @@ export default {
 .value-container {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   width: 70vw;
+  max-width: 800px;
+  min-width: 600px;
   margin: 5px auto;
   padding: 10px 20px;
-  background-color: #f9f9f9;
+  //   background-color: #e3f2fd;
   border-radius: 10px;
-  border: solid 2px #f9f9f9;
+  border: solid 3px #1c2331;
+
+  background-image: linear-gradient(135deg, #fdfbfb 10%, #ebedee 100%);
 }
 
 .value-container:hover {
-  border: solid 2px #e71b64;
-}
-
-.value-title {
-  font-size: 1.1em;
-  padding-right: 15px;
-  vertical-align: middle;
+  border: solid 3px #e91e63;
+  box-shadow: 0 0 10px 1px #1c2331;
 }
 
 .live-value {
   vertical-align: middle;
+  padding: 10px 0;
+  width: 150px;
+  margin: auto 10px auto 5px;
+  //   height: 4em;
+  font-size: 22px;
+  font-family: "Raleway" 500;
+//   font-weight: 500;
+  border-right: solid #1c2331 2px;
+  //   border: solid grey 2px;
+  //   border-radius: 3px;
+}
+
+.value-title {
+  font-size: 1.1em;
+  font-weight: bold;
+  //   padding-right: 15px;
+  padding-bottom: 3px;
+  margin-bottom: 2px;
+  border-bottom: #1c2331 solid 3px;
+  text-align: left;
+  vertical-align: middle;
+  flex: 0 0 100%;
+}
+
+.title {
+  padding: 3px 8px;
+  font-weight: bold;
+  margin-bottom: 5px;
+  font-family: Cabin 400;
+}
+.live-calibration {
+  padding: 3px 8px;
+  vertical-align: middle;
+}
+.cal-input {
+  height: 2em;
+  border: darken(#f9f9f9, 10%) solid 1px;
+  text-align: center;
+  width: 100px;
+}
+
+// Remove arrows from input boxes
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 </style>
