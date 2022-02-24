@@ -1,12 +1,20 @@
 <template>
   <div class="background">
     <div class="disconnected overlay" v-if="!connected">
-        <div class="info-large">Plug in your eChook GPT or connect via Bluetooth, then:</div>
-      <p><button @click="connect">Connect</button></p>
+      <div class="info-large">
+        <strong>
+          Plug in your eChook GPT
+          <p>Or</p>
+          Connect via Bluetooth
+          <p>Then:</p>
+        </strong>
+      </div>
+      <p><button class="connect-button" @click="connect">Connect</button></p>
     </div>
-    <!-- <button v-if="connected" @click="serialRequestFloatCal">
-      Fetch Current Calibration
+    <!-- <button v-if="connected" @click="serialRequestAllCal">
+      Get Calibration
     </button> -->
+    <!-- <button v-if="connected" @click="serialSendBinaryData">Send Binary</button> -->
     <!-- <button v-if="connected" @click="serialToggleData">Toggle Data</button> -->
     <!-- <h2>
       {{
@@ -17,20 +25,72 @@
           : "Disconnected"
       }}
     </h2> -->
-    <div v-if="connected">
+    <div v-if="connected && waitingForData" class="lds-grid">
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+    </div>
+    <div v-if="connected && !waitingForData">
       <div class="values-container">
+        <!-- <div class="serial-view">{{ inputBuffer }}</div> -->
+        <div class="value-container">
+          <div class="value-title">Device Information</div>
+          <div class="live-calibration">
+            <div class="title">Name</div>
+          <input class="cal-input" type="text" v-model="eChook.bluetoothName.value" />
+        </div></div>
+
+        <div class="value-container binary">
+          <div class="value-title">Setting Toggles</div>
+          <template v-for="item in eChook.binary" v-bind:key="item">
+            <div v-if="!item.hidden" class="binary-cal-container">
+              <div class="title">{{ item.name }}</div>
+              <div
+                class="binary-option"
+                @click="item.value = 1"
+                v-bind:class="{ active: item.value }"
+              >
+                {{ item.op1 }}
+              </div>
+              <div
+                class="binary-option"
+                @click="item.value = 0"
+                v-bind:class="{ active: !item.value }"
+              >
+                {{ item.op2 }}
+              </div>
+            </div>
+          </template>
+        </div>
+
+       
         <template v-for="item in eChook" v-bind:key="item">
-          <div v-if="item.title" class="value-container">
-            <div class="value-title">{{ item.title }}:</div>
+          <div v-if="item.title && !item.hidden" class="value-container">
+            <div class="value-title">{{ item.title }}</div>
             <div v-if="item.value != null" class="live-value">
               <!-- <div class="title">Live Data:</div> -->
               {{ item.value }} {{ item.units }}
             </div>
             <!-- <div v-if="item.calibration"> -->
             <template v-for="cal in item.calibration" v-bind:key="cal">
-              <div v-if="cal.value != null" class="live-calibration">
+              <div
+                v-if="cal.value != null"
+                class="live-calibration"
+                v-bind:class="{ changed: cal.changed }"
+              >
                 <div class="title">{{ cal.name }}:</div>
-                <input class="cal-input" type="number" v-model="cal.value" />
+                <input
+                  class="cal-input"
+                  @input="checkChange"
+                  type="number"
+                  v-model="cal.value"
+                />
                 <div>{{ cal.unit }}</div>
                 <!-- {{ cal.value }}  -->
               </div>
@@ -38,6 +98,15 @@
             <!-- </div> -->
           </div>
         </template>
+      </div>
+      <div style="height: 100px"></div>
+      <div class="bottom-menu">
+        <div @click="disconnectPort" class="button disconnect">Disconnect</div>
+        <div class="button">Backup Config</div>
+        <div class="button">Restore Backup</div>
+        <div class="button send-data" @click="serialSendAllCal">
+          {{ sendCalText }}
+        </div>
       </div>
     </div>
   </div>
@@ -65,29 +134,67 @@ export default {
       writer: null,
       running: true,
       inputBuffer: null,
+      changeCount: 0,
       serialCalibration: {
         dataPacketLength: 5,
-        binaryCalArrayLength: 7,
+        binaryCalArrayLength: 10,
         binaryCalIdentifier: "b",
         floatCalArrayLength: 83,
         floatCalIdentifier: "f",
-        btNameArrayLength: 13,
+        btNameArrayLength: 33,
         btNameIdentifier: "n",
       },
       eChook: {
-        other: {
-          identifier: null,
-          transmitInterval: null,
-          transmitIntervalOld: null,
-          useHardcoded: null,
-          product: null,
-          swVersion: null,
+        binary: {
+          variableThrottle: {
+            name: "Throttle Type",
+            op1: "Variable",
+            op2: "On/Off",
+            value: null,
+            old: null,
+            hidden: 0,
+            changed: 0,
+          },
+          throttleOut: {
+            name: "Throttle Output (PWM)",
+            op1: "On",
+            op2: "Off",
+            value: null,
+            old: null,
+            hidden: 0,
+            changed: 0,
+          },
+          throttleRamp: {
+            name: "Throttle Ramp",
+            op1: "On",
+            op2: "Off",
+            value: null,
+            old: null,
+            hidden: 0,
+            changed: 0,
+          },
+          linearTempSensor: {
+            name: "Temp Sensor Type",
+            op1: "Linear",
+            op2: "Thermistor",
+            value: null,
+            old: null,
+            hidden: 0,
+            changed: 0,
+          },
+        },
+        bluetoothName: {
+          value: null,
+          old: null,
+          hidden: 1,
+          changed: 0,
         },
         transmitInterval: {
           title: "Data Transmit Interval",
           precision: 0,
           units: "ms",
           identifier: null,
+          hidden: 1,
           calibration: {
             interval: {
               name: "Interval",
@@ -96,6 +203,23 @@ export default {
               floatIndex: 0,
               changed: 0,
               old: null,
+            },
+          },
+        },
+        referenceVoltage: {
+          title: "Reference Voltage",
+          precision: 2,
+          units: "V",
+          value: null,
+          identifier: "V",
+          calibration: {
+            voltage: {
+              name: "Voltage",
+              units: "Volts",
+              value: null,
+              changed: 0,
+              old: null,
+              floatIndex: null, // no calibration
             },
           },
         },
@@ -127,7 +251,7 @@ export default {
         },
         rpm: {
           title: "Motor RPM",
-          precision: 2,
+          precision: 0,
           units: "RPM",
           value: null,
           identifier: "m",
@@ -176,7 +300,7 @@ export default {
           },
         },
         voltageLower: {
-          title: "Voltge (lower)",
+          title: "Volatge (lower)",
           precision: 2,
           units: "V",
           value: null,
@@ -201,7 +325,7 @@ export default {
           calibration: {
             lowThreshold: {
               name: "Low Threshold",
-              units: "Volts",
+              unit: "Volts",
               value: null,
               precision: 2,
               changed: 0,
@@ -210,7 +334,7 @@ export default {
             },
             highThreshold: {
               name: "High Threshold",
-              units: "Volts",
+              unit: "Volts",
               value: null,
               precision: 2,
               changed: 0,
@@ -232,6 +356,21 @@ export default {
               changed: 0,
               old: null,
               floatIndex: null,
+            },
+          },
+        },
+        temp3: {
+          title: "Temperature eChook",
+          precision: 0,
+          units: "°c",
+          value: null,
+          identifier: "c",
+          calibration: {
+            placeholder: {
+              value: null,
+              changed: 0,
+              old: null,
+              floatIndex: null, // no calibration
             },
           },
         },
@@ -301,26 +440,12 @@ export default {
             },
           },
         },
-        temp3: {
-          title: "Temperature eChook",
-          precision: 0,
-          units: "°c",
-          value: null,
-          identifier: "c",
-          calibration: {
-            placeholder: {
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: null, // no calibration
-            },
-          },
-        },
+
         launchMode: {
           title: "Launch Mode Button",
           precision: 0,
           units: null,
-          value: null,
+          value: 0,
           identifier: "L",
           calibration: {
             placeholder: {
@@ -335,7 +460,7 @@ export default {
           title: "Next Screen Button",
           precision: 0,
           units: null,
-          value: null,
+          value: 0,
           identifier: "C",
           calibration: {
             placeholder: {
@@ -365,28 +490,11 @@ export default {
           title: "Brake Switch",
           precision: 0,
           units: null,
-          value: null,
+          value: 0,
           identifier: "B",
           calibration: {
             inverted: {
               name: "Inverted",
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: null, // no calibration
-            },
-          },
-        },
-        referenceVoltage: {
-          title: "Reference Voltage",
-          precision: 2,
-          units: "V",
-          value: null,
-          identifier: "V",
-          calibration: {
-            voltage: {
-              name: "Voltage",
-              units: "Volts",
               value: null,
               changed: 0,
               old: null,
@@ -402,7 +510,51 @@ export default {
       this.hasSerial = true;
     }
   },
+  computed: {
+    sendCalText() {
+      let text = "";
+      if (!this.changeCount) {
+        text = `No Changes`;
+      } else if (this.changeCount === 1) {
+        text = `Send 1 Change to eChook`;
+      } else {
+        text = `Send ${this.changeCount} Changes to eChook`;
+      }
+      return text;
+    },
+  },
   methods: {
+    checkChange() {
+      console.log(`CheckChange`);
+      this.changeCount = 0;
+
+      //Checks for changes from fetched calibration
+
+      // Binary Values:
+      for (let item in this.eChook.binary) {
+        let tmp = this.eChook.binary[item];
+        if (tmp.value != tmp.old) {
+          tmp.changed = 1;
+          this.changeCount++;
+        }
+      }
+
+      // Float Values
+      for (let item in this.eChook) {
+        let tempChook = this.eChook[item];
+        if ({}.hasOwnProperty.call(this.eChook[item], "calibration")) {
+          for (let cal in tempChook.calibration) {
+            let c = tempChook.calibration[cal];
+            if (c.value != c.old) {
+              c.changed = 1;
+              this.changeCount++;
+            }else{
+              c.changed = 0;
+            }
+          }
+        }
+      }
+    },
     async connect() {
       this.connected = false;
       this.port = await navigator.serial.requestPort();
@@ -412,6 +564,9 @@ export default {
       } catch (error) {
         console.log("*** open port error ***");
         console.log(error);
+        if (!window.alert(`Failed to open Serial Port\n\n${error}`)) {
+          window.location.reload();
+        }
         this.connectFailed = true;
       }
       // Check for success and continue
@@ -423,6 +578,9 @@ export default {
         // this.writer = this.port.writable.getWriter();
         this.closed = this.readLoop();
       }
+    },
+    async disconnectPort() {
+      window.location.reload();
     },
     async readLoop() {
       console.log(`Entering ReadLoop`);
@@ -466,6 +624,7 @@ export default {
                   this.inputBuffer.length >
                   this.serialCalibration.floatCalArrayLength
                 ) {
+                  //look for float calibration array:
                   if (
                     String.fromCharCode(
                       this.inputBuffer[
@@ -473,14 +632,13 @@ export default {
                       ]
                     ) === "["
                   ) {
-                    console.log("Float Calibration Packet Found");
                     // Packet Found, verify with ID character:
                     if (
                       String.fromCharCode(
                         this.inputBuffer[
                           i - this.serialCalibration.floatCalArrayLength + 2
                         ]
-                      ) === "f"
+                      ) === this.serialCalibration.floatCalIdentifier
                     ) {
                       // Pull the float data out into an array:
                       let calArray = new Uint8Array();
@@ -488,20 +646,109 @@ export default {
                         i - this.serialCalibration.floatCalArrayLength + 3,
                         i
                       );
-                      console.log(`Float Array Length: ${calArray.length}`);
-                      console.log(`Float Array Identified as: ${calArray}`);
                       this.eChookFloatCalDecode(calArray);
                       found = 1;
 
                       // Remove the interpreted packet from the buffer
                       this.inputBuffer = this.concatenate(
-                        this.inputBuffer.slice(0, i - 4),
-                        this.inputBuffer.slice(i + 1, this.inputBuffer.length)
+                        this.inputBuffer.slice(
+                          0,
+                          i - this.serialCalibration.floatCalArrayLength
+                        ),
+                        this.inputBuffer.slice(i, this.inputBuffer.length)
                       );
                       i = -1; // Exit the for loop and search again from the top.
                     }
                   }
                 }
+                // Look for Binary cal array
+                if (
+                  this.inputBuffer.length >
+                  this.serialCalibration.binaryCalArrayLength
+                ) {
+                  if (
+                    String.fromCharCode(
+                      this.inputBuffer[
+                        i - this.serialCalibration.binaryCalArrayLength + 1
+                      ]
+                    ) === "["
+                  ) {
+                    //Binary cal start bracket found
+                    // console.log(`Found Binary Settings Start Bracket`);
+                    if (
+                      String.fromCharCode(
+                        this.inputBuffer[
+                          i - this.serialCalibration.binaryCalArrayLength + 2
+                        ]
+                      ) === this.serialCalibration.binaryCalIdentifier
+                    ) {
+                      // Pull the float data out into an array:
+                      let calArray = new Uint8Array();
+                      calArray = this.inputBuffer.slice(
+                        i - this.serialCalibration.binaryCalArrayLength + 3,
+                        i
+                      );
+                      console.log(`Binary Array Length: ${calArray.length}`);
+                      console.log(`Binary Array Identified as: ${calArray}`);
+                      this.eChookBinaryCalDecode(calArray);
+                      found = 1;
+
+                      // Remove the interpreted packet from the buffer
+                      this.inputBuffer = this.concatenate(
+                        this.inputBuffer.slice(
+                          0,
+                          i - this.serialCalibration.binaryCalArrayLength
+                        ),
+                        this.inputBuffer.slice(i, this.inputBuffer.length)
+                      );
+                      i = -1; // Exit the for loop and search again from the top.
+                    }
+                  }
+                } // /look for binary cal
+                // Look for Name cal array
+                if (
+                  this.inputBuffer.length >
+                  this.serialCalibration.btNameArrayLength
+                ) {
+                  if (
+                    String.fromCharCode(
+                      this.inputBuffer[
+                        i - this.serialCalibration.btNameArrayLength + 1
+                      ]
+                    ) === "["
+                  ) {
+                    //Binary cal start bracket found
+                    // console.log(`Found Binary Settings Start Bracket`);
+                    if (
+                      String.fromCharCode(
+                        this.inputBuffer[
+                          i - this.serialCalibration.btNameArrayLength + 2
+                        ]
+                      ) === this.serialCalibration.btNameIdentifier
+                    ) {
+                      // Pull the float data out into an array:
+                      let calArray = new Uint8Array();
+                      calArray = this.inputBuffer.slice(
+                        i - this.serialCalibration.btNameArrayLength + 3,
+                        i
+                      );
+                      // console.log(`Binary Array Length: ${calArray.length}`);
+                      // console.log(`Binary Array Identified as: ${calArray}`);
+                      this.eChookNameCalDecode(calArray);
+                      found = 1;
+
+                      // Remove the interpreted packet from the buffer
+                      this.inputBuffer = this.concatenate(
+                        this.inputBuffer.slice(
+                          0,
+                          i - this.serialCalibration.btNameArrayLength
+                        ),
+                        this.inputBuffer.slice(i, this.inputBuffer.length)
+                      );
+                      i = -1; // Exit the for loop and search again from the top.
+                    }
+                  }
+                } // /look for Name cal
               }
             }
           }
@@ -544,49 +791,31 @@ export default {
       if (this.waitingForData) {
         this.waitingForData = 0;
         this.serialRequestFloatCal();
+        this.serialRequestBinaryCal();
+        this.serialRequestBTName();
       }
       let value = 0;
       id = String.fromCharCode(id);
+
       //Decode Numbers:
-      if (byte1 === 255 && byte2 === 255) {
-        value = 0;
-      } else if (byte1 > 128) {
+      if (byte1 > 128) {
         //Integer Value
-        let hundreds = 0;
-        if (byte1 === 255) {
-          hundreds = 0;
-        } else {
-          hundreds = (byte1 - 128) * 100;
-        }
-        let tens = 0;
-        if (byte2 === 255) {
-          tens = 0;
-        } else {
-          tens = byte2;
-        }
+        let hundreds = (byte1 - 128) * 100;
+        let tens = byte2;
         value = hundreds + tens;
       } else {
         //Float Value
         let intVal = 0;
-        if (byte1 === 255) {
-          intVal = 0;
-        } else {
-          intVal = byte1;
-        }
+        intVal = byte1;
         let decimal = 0;
-        if (byte2 === 255) {
-          decimal = 0;
-        } else {
-          decimal = byte2 / 100;
-        }
-        value = Number(intVal + decimal);
+        decimal = Number(byte2) / 100;
+        value = Number(Number(intVal) + Number(decimal));
       }
 
       //   now update relevant value
-      //   console.log(`eChook Data Decode, ID:${id}, Value:${value}`);
       for (let i in this.eChook) {
         if (this.eChook[i].identifier === id) {
-          this.eChook[i].value = value.toFixed(2);
+          this.eChook[i].value = value.toFixed(this.eChook[i].precision);
         }
       }
     },
@@ -598,31 +827,74 @@ export default {
         i < this.serialCalibration.floatCalArrayLength - 5;
         i = i + 4
       ) {
-        //   let floatBuff = calArray.slice(i, i+4);
-        //   let view = new DataView(floatBuff.buffer);
         let output = view.getFloat32(i, 1);
-        console.log(`Float ${i / 4} read as ${output}`);
+        // console.log(`Float ${i / 4} read as ${output}`);
 
         //   Now a long winded asign calibration routine.
         let index = i / 4;
 
         // new assignment routine
         for (let item in this.eChook) {
-          console.log(`Looking in ${this.eChook[item].title}`);
+          // console.log(`Looking in ${this.eChook[item].title}`);
           let tempChook = this.eChook[item];
           if ({}.hasOwnProperty.call(this.eChook[item], "calibration")) {
             for (let cal in tempChook.calibration) {
               let c = tempChook.calibration[cal];
-              console.log(`Stringified: ${JSON.stringify(c)}`);
-              console.log(`Checking index ${tempChook.title}, ${c.name}`);
               if (c.floatIndex === index) {
                 c.value = output.toFixed(c.precision);
                 c.old = c.value;
+                // console.log(`Stringified: ${JSON.stringify(c)}`);
+                // console.log(`Checking index ${tempChook.title}, ${c.name}`);
               }
             }
           }
         }
       }
+      this.checkChange();
+    },
+    eChookBinaryCalDecode(calArray) {
+      // No way to split and asign this automatically at the moment...
+
+      // console.log(`Entering binary decode: ${calArray}`);
+
+      let CAL_A = calArray[0];
+      let CAL_B = calArray[1];
+      let CAL_C = calArray[2];
+      let CAL_D = calArray[3];
+
+      // this.eChook.binary.useHardcoded.value = CAL_A & 0x80;
+      // this.eChook.binary.useHardcoded.old = CAL_A & 0x80;
+
+      this.eChook.binary.variableThrottle.value = CAL_A & 0x40;
+      this.eChook.binary.variableThrottle.old = CAL_A & 0x40;
+
+      this.eChook.binary.linearTempSensor.value = CAL_A & 0x20;
+      this.eChook.binary.linearTempSensor.old = CAL_A & 0x20;
+
+      this.eChook.binary.throttleOut.value = CAL_A & 0x10;
+      this.eChook.binary.throttleOut.old = CAL_A & 0x10;
+
+      this.eChook.binary.throttleRamp.value = CAL_A & 0x08;
+      this.eChook.binary.throttleRamp.old = CAL_A & 0x08;
+
+      // this.eChook.binary.useHardcoded = CAL_A & 0x80;
+      // this.eChook.binary.useHardcodedOld = CAL_A & 0x80;
+      this.checkChange();
+    },
+    eChookNameCalDecode(calArray) {
+      let tmpName = "";
+      console.log(`Name Array Length: ${calArray.length}`);
+
+      for (let i = 0; i < this.serialCalibration.btNameArrayLength - 3; i++) {
+        if (calArray[i] && calArray[i] != 0xff) {
+          console.log(`Cal array ${i}: ${calArray[i]}`);
+          tmpName += String.fromCharCode(calArray[i]);
+        }
+      }
+
+      this.eChook.bluetoothName.value = tmpName;
+      this.eChook.bluetoothName.old = tmpName;
+      this.checkChange();
     },
     //Serial Write Functions
     serialWrite(data) {
@@ -634,9 +906,14 @@ export default {
       this.writer.write(data);
       this.writer.releaseLock();
     },
-    serialRequestHWVersion() {
+    serialRequestAllCal() {
+      this.serialRequestFloatCal();
+      this.serialRequestBinaryCal();
+      this.serialRequestBTName();
+    },
+    serialRequestBTName() {
       let data = new Uint8Array(2);
-      let text = "gh"; // Request Hardware version
+      let text = "gn"; // Request Hardware version
       data[0] = text.charCodeAt(0);
       data[1] = text.charCodeAt(1);
       this.serialWrite(data);
@@ -664,9 +941,97 @@ export default {
     },
     serialToggleData() {
       let data = new Uint8Array(2);
-      let text = "gd"; // Request Float cal data
+      let text = "gd";
       data[0] = text.charCodeAt(0);
       data[1] = text.charCodeAt(1);
+      this.serialWrite(data);
+    },
+    serialSendAllCal() {
+      this.serialSendBtName();
+      this.serialSendFloatData();
+    },
+    serialSendBtName() {
+      if (
+        this.eChook.bluetoothName.value != null &&
+        this.eChook.bluetoothName.value.length <= 30
+      ) {
+        let data = new Uint8Array(32);
+        data.fill(0xff);
+        let text = "sn"; //Set Name
+        data[0] = text.charCodeAt(0);
+        data[1] = text.charCodeAt(1);
+        for (
+          let i = 0;
+          i < this.eChook.bluetoothName.value.length;
+          i++
+        ) {
+          data[i + 2] = this.eChook.bluetoothName.value.charCodeAt(i);
+          console.log(
+            `Adding ${this.eChook.bluetoothName.value.charCodeAt(
+              i
+            )} to data at ${i + 2}`
+          );
+        }
+        console.log(`Sending: ${data}`);
+        this.serialWrite(data);
+      }
+    },
+    serialSendFloatData() {
+      let floatData = new Float32Array(20);
+      let view = new DataView(floatData.buffer);
+
+      for (let item in this.eChook) {
+        let tempChook = this.eChook[item];
+        if ({}.hasOwnProperty.call(this.eChook[item], "calibration")) {
+          for (let cal in tempChook.calibration) {
+            let c = tempChook.calibration[cal];
+            if (c.floatIndex != null) {
+              console.log(``);
+              view.setFloat32(c.floatIndex * 4, c.value, true); // Converts to litte endian:
+              // https://stackoverflow.com/questions/26025215/about-the-binary-format-of-javascript-typedarray-float32
+            }
+          }
+        }
+      }
+
+      let command = new Uint8Array(2);
+      let text = "sf"; //Set Name
+      command[0] = text.charCodeAt(0);
+      command[1] = text.charCodeAt(1);
+
+      let data = new Uint8Array(view.buffer);
+      this.serialWrite(command);
+      this.serialWrite(data);
+      // console.log(`OutBuffer: ${data}`);
+    },
+    serialSendBinaryData() {
+      let data = new Uint8Array(4 + 2);
+      data.fill(0);
+
+      if (this.eChook.binary.useHardcoded.value) {
+        data[2] = data[2] | 0x80;
+      }
+
+      if (this.eChook.binary.variableThrottle.value) {
+        data[2] = data[2] | 0x40;
+      }
+
+      if (this.eChook.binary.linearTempSensor.value) {
+        data[2] = data[2] | 0x20;
+      }
+
+      if (this.eChook.binary.throttleOut.value) {
+        data[2] = data[2] | 0x10;
+      }
+
+      if (this.eChook.binary.throttleRamp.value) {
+        data[2] = data[2] | 0x08;
+      }
+
+      let command = "sb";
+      data[0] = command.charCodeAt(0);
+      data[1] = command.charCodeAt(1);
+
       this.serialWrite(data);
     },
   },
@@ -677,6 +1042,7 @@ export default {
 div {
   // border-radius: 5%;
   // border: solid lightblue 1px;
+  font-family: Cabin, sans-serif;
 }
 
 .background {
@@ -710,19 +1076,43 @@ div {
   -moz-box-shadow: inset 0 1px 0 #0f89b4;
 }
 
-.overlay{
-    // position: fixed;
-    
-    text-align: center;
-    margin: 150px auto;
-    // left: 10vw;
-    height: 20vh;
-    width: 80vw;
-    background-image: linear-gradient(135deg, #f9f9f9 10%, #e2e2e2 100%);
-    border: solid 2px #1c2331;
-    border-radius: 10px;
-    padding: 20px 0;
+.overlay {
+  // position: fixed;
 
+  text-align: center;
+  margin: 150px auto;
+  // left: 10vw;
+  // height: 20vh;
+  width: 500px;
+  background-image: linear-gradient(135deg, #f9f9f9 10%, #e2e2e2 100%);
+  border: solid 2px #1c2331;
+  border-radius: 10px;
+  padding: 80px 100px 50px;
+}
+
+.info-large {
+  font-family: Cabin 400 sans-serif;
+  font-size: 30px;
+}
+
+.connect-button {
+  width: 400px;
+  height: 90px;
+  background-image: linear-gradient(0deg, #ff758c 10%, #e91e63 100%);
+  color: #f9f9f9;
+  font-size: 40px;
+  border: solid 3px #e91e63;
+  border-radius: 15px;
+  font-weight: bold;
+}
+
+.connect-button:hover {
+  cursor: pointer;
+  box-shadow: 0 0 3px 0px black;
+}
+
+.connect-button:active {
+  background-image: linear-gradient(0deg, #e91e63 10%, #ff758c 100%);
 }
 
 .serial-view {
@@ -739,6 +1129,39 @@ div {
   flex-direction: column;
 }
 
+.values-container .binary {
+  // flex-direction: row;
+  display: block;
+}
+
+.binary-cal-container {
+  display: flex;
+  flex-direction: row;
+  vertical-align: middle;
+  text-align: left;
+  // border-top: solid darken($color: #f9f9f9, $amount: 10%);
+  border-bottom: solid darken($color: #f9f9f9, $amount: 20%);
+  // margin: 10px 0;
+}
+
+.binary-option {
+  margin: 10px 10px;
+  width: 130px;
+  text-align: center;
+  background-color: darken($color: #f9f9f9, $amount: 10%);
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-weight: bold;
+}
+
+.binary-cal-container .active {
+  background-image: linear-gradient(135deg, #70f570 10%, #49c628 100%);
+}
+
+.binary-cal-container .title {
+  width: 250px;
+  margin: auto 0;
+}
 .value-container {
   display: flex;
   flex-direction: row;
@@ -767,8 +1190,10 @@ div {
   margin: auto 10px auto 5px;
   //   height: 4em;
   font-size: 22px;
-  font-family: "Raleway" 500;
-//   font-weight: 500;
+  font-family: Oswald;
+  font-weight: bold;
+  //   font-family: Raleway, normal;
+  //   font-weight: 500;
   border-right: solid #1c2331 2px;
   //   border: solid grey 2px;
   //   border-radius: 3px;
@@ -793,14 +1218,60 @@ div {
   font-family: Cabin 400;
 }
 .live-calibration {
+  margin: 1px 3px;
   padding: 3px 8px;
   vertical-align: middle;
+}
+
+.changed {
+  background-color: #e91e63;
+  border-radius: 3px;
+  color: #f9f9f9;
 }
 .cal-input {
   height: 2em;
   border: darken(#f9f9f9, 10%) solid 1px;
+  border-radius: 2px;
   text-align: center;
-  width: 100px;
+  min-width: 100px;
+}
+
+.bottom-menu {
+  position: fixed;
+  left: 0px;
+  bottom: 0%;
+  // height: 55px;
+  width: 100%;
+  // background-image: linear-gradient(135deg, #fdfbfb 10%, #ebedee 100%);
+  background-image: linear-gradient(0deg, #1c2331 10%, #292e49 100%);
+  border-top: solid 3px #1c2331;
+  color: #f9f9f9;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.bottom-menu .button {
+  margin: 8px 20px;
+  padding: 9px 15px;
+  background-color: #e91e63;
+  // background-image: linear-gradient(135deg, #e91e63 10%, #b91d73 100%);
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.bottom-menu .disconnect {
+  margin-right: auto;
+  background-color: red;
+}
+
+.bottom-menu .send-data {
+  background-color: green;
+}
+
+.button:hover {
+  cursor: pointer;
+  user-select: none;
 }
 
 // Remove arrows from input boxes

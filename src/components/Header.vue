@@ -1,7 +1,7 @@
 <template>
   <div class="header-container">
 <div class="logo">eChook</div>
-  <div class="site-header">eChook GPT Calibration Tool</div>
+  <div class="site-header">Greenpower Telemetry Calibration</div>
   </div>
 </template>
 
@@ -46,7 +46,7 @@ export default {
     color: #f9f9f9;
     height: 70px;
     font-size: 30px;
-    font-family: Cabin 400 sans-serif;
+    font-family: Cabin, sans-serif;
     padding-top: 20px;
 }
 </style>
