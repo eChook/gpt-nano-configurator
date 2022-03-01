@@ -4,9 +4,9 @@
       <div class="info-large">
         <strong>
           Plug in your eChook GPT
-          <p>Or</p>
+          <p>or</p>
           Connect via Bluetooth
-          <p>Then:</p>
+          <p>then</p>
         </strong>
       </div>
       <p><button class="connect-button" @click="connect">Connect</button></p>
@@ -36,31 +36,50 @@
       <div></div>
       <div></div>
     </div>
-    <div v-if="connected && !waitingForData">
-      <div class="values-container">
+    <div class="ca" v-if="connected && !waitingForData">
+      <div class="values-container two-col">
         <!-- <div class="serial-view">{{ inputBuffer }}</div> -->
-        <div class="value-container">
+        <div class="value-container ca">
           <div class="value-title">Device Information</div>
-          <div class="live-calibration">
+          <div
+            class="live-calibration"
+            v-bind:class="{ changed: eChook.bluetoothName.changed }"
+          >
             <div class="title">Name</div>
-          <input class="cal-input" type="text" v-model="eChook.bluetoothName.value" />
-        </div></div>
+            <input
+              class="cal-input"
+              type="text"
+              @input="checkChange"
+              v-model="eChook.bluetoothName.value"
+            />
+          </div>
+        </div>
 
-        <div class="value-container binary">
+        <div class="value-container binary ca">
           <div class="value-title">Setting Toggles</div>
           <template v-for="item in eChook.binary" v-bind:key="item">
-            <div v-if="!item.hidden" class="binary-cal-container">
+            <div
+              v-if="!item.hidden"
+              class="binary-cal-container"
+              v-bind:class="{ changed: item.changed }"
+            >
               <div class="title">{{ item.name }}</div>
               <div
                 class="binary-option"
-                @click="item.value = 1"
+                @click="
+                  item.value = 1;
+                  checkChange();
+                "
                 v-bind:class="{ active: item.value }"
               >
                 {{ item.op1 }}
               </div>
               <div
                 class="binary-option"
-                @click="item.value = 0"
+                @click="
+                  item.value = 0;
+                  checkChange();
+                "
                 v-bind:class="{ active: !item.value }"
               >
                 {{ item.op2 }}
@@ -69,9 +88,12 @@
           </template>
         </div>
 
-       
         <template v-for="item in eChook" v-bind:key="item">
-          <div v-if="item.title && !item.hidden" class="value-container">
+          <div
+            v-if="item.title && !item.hidden"
+            class="value-container c1"
+            v-bind:class="{ c2: !item.calibratable }"
+          >
             <div class="value-title">{{ item.title }}</div>
             <div v-if="item.value != null" class="live-value">
               <!-- <div class="title">Live Data:</div> -->
@@ -93,7 +115,7 @@
                 />
                 <div>{{ cal.unit }}</div>
                 <!-- {{ cal.value }}  -->
-              </div>
+              </div> <div v-else><div class="title no-cal">Not Calibratable</div></div>
             </template>
             <!-- </div> -->
           </div>
@@ -102,20 +124,45 @@
       <div style="height: 100px"></div>
       <div class="bottom-menu">
         <div @click="disconnectPort" class="button disconnect">Disconnect</div>
-        <div class="button">Backup Config</div>
-        <div class="button">Restore Backup</div>
+        <div class="button" @click="backupDownload">Backup Config</div>
+        <div
+          class="button"
+          onclick="document.getElementById('fileButton').click();"
+        >
+          <input
+            id="fileButton"
+            style="display: none"
+            type="file"
+            ref="jsonFile"
+            @change="backupRestore"
+          />
+          Restore Backup
+        </div>
         <div class="button send-data" @click="serialSendAllCal">
           {{ sendCalText }}
         </div>
       </div>
     </div>
   </div>
+
+<!-- Calibration Tools -->
+<div class="tools-background" v-if="tools">
+  <div class="tools-container">
+    <div class="title">Calibration Tools</div>
+  </div>
+
+</div>
+
+
 </template>
 
 <script>
+import * as ext from "../scripts/dataTemplate.js";
+// console.log(`imported: ${JSON.stringify(ext.dataTemplate.eChook)}`);
 export default {
   data() {
     return {
+      tools: 1,
       dataIn: "Starting String",
       hasSerial: 0,
       connected: false,
@@ -144,371 +191,17 @@ export default {
         btNameArrayLength: 33,
         btNameIdentifier: "n",
       },
-      eChook: {
-        binary: {
-          variableThrottle: {
-            name: "Throttle Type",
-            op1: "Variable",
-            op2: "On/Off",
-            value: null,
-            old: null,
-            hidden: 0,
-            changed: 0,
-          },
-          throttleOut: {
-            name: "Throttle Output (PWM)",
-            op1: "On",
-            op2: "Off",
-            value: null,
-            old: null,
-            hidden: 0,
-            changed: 0,
-          },
-          throttleRamp: {
-            name: "Throttle Ramp",
-            op1: "On",
-            op2: "Off",
-            value: null,
-            old: null,
-            hidden: 0,
-            changed: 0,
-          },
-          linearTempSensor: {
-            name: "Temp Sensor Type",
-            op1: "Linear",
-            op2: "Thermistor",
-            value: null,
-            old: null,
-            hidden: 0,
-            changed: 0,
-          },
-        },
-        bluetoothName: {
-          value: null,
-          old: null,
-          hidden: 1,
-          changed: 0,
-        },
-        transmitInterval: {
-          title: "Data Transmit Interval",
-          precision: 0,
-          units: "ms",
-          identifier: null,
-          hidden: 1,
-          calibration: {
-            interval: {
-              name: "Interval",
-              units: "ms",
-              value: null,
-              floatIndex: 0,
-              changed: 0,
-              old: null,
-            },
-          },
-        },
-        referenceVoltage: {
-          title: "Reference Voltage",
-          precision: 2,
-          units: "V",
-          value: null,
-          identifier: "V",
-          calibration: {
-            voltage: {
-              name: "Voltage",
-              units: "Volts",
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: null, // no calibration
-            },
-          },
-        },
-        speed: {
-          title: "Speed",
-          precision: 2,
-          units: "m/s",
-          value: null,
-          identifier: "s",
-          calibration: {
-            magnets: {
-              name: "Magnets",
-              precision: 0,
-              value: null,
-              floatIndex: 1,
-              changed: 0,
-              old: null,
-            },
-            circumference: {
-              name: "Circumference",
-              unit: "meters",
-              precision: 2,
-              value: null,
-              floatIndex: 15,
-              changed: 0,
-              old: null,
-            },
-          },
-        },
-        rpm: {
-          title: "Motor RPM",
-          precision: 0,
-          units: "RPM",
-          value: null,
-          identifier: "m",
-          calibration: {
-            magnets: {
-              name: "Magnets",
-              value: null,
-              floatIndex: 2,
-              changed: 0,
-              old: null,
-            },
-          },
-        },
-        current: {
-          title: "Current",
-          precision: 2,
-          units: "A",
-          value: null,
-          identifier: "i",
-          calibration: {
-            multiplier: {
-              name: "Scaling Factor",
-              precision: 2,
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: 6,
-            },
-          },
-        },
-        voltage: {
-          title: "Voltage (total)",
-          precision: 2,
-          units: "V",
-          value: null,
-          identifier: "v",
-          calibration: {
-            multiplier: {
-              name: "Scaling Factor",
-              precision: 2,
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: 4,
-            },
-          },
-        },
-        voltageLower: {
-          title: "Volatge (lower)",
-          precision: 2,
-          units: "V",
-          value: null,
-          identifier: "w",
-          calibration: {
-            multiplier: {
-              name: "Scaling Factor",
-              precision: 2,
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: 5,
-            },
-          },
-        },
-        throttleInput: {
-          title: "Throttle Input",
-          precision: 2,
-          units: "V",
-          value: null,
-          identifier: "t",
-          calibration: {
-            lowThreshold: {
-              name: "Low Threshold",
-              unit: "Volts",
-              value: null,
-              precision: 2,
-              changed: 0,
-              old: null,
-              floatIndex: 13,
-            },
-            highThreshold: {
-              name: "High Threshold",
-              unit: "Volts",
-              value: null,
-              precision: 2,
-              changed: 0,
-              old: null,
-              floatIndex: 14,
-            },
-          },
-        },
-        throttleActual: {
-          title: "Throttle Output",
-          precision: 1,
-          units: "%",
-          value: null,
-          identifier: "d",
-          calibration: {
-            multiplier: {
-              value: null, // Not used, but present to keep the object iterable in the template
-              precision: 1,
-              changed: 0,
-              old: null,
-              floatIndex: null,
-            },
-          },
-        },
-        temp3: {
-          title: "Temperature eChook",
-          precision: 0,
-          units: "°c",
-          value: null,
-          identifier: "c",
-          calibration: {
-            placeholder: {
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: null, // no calibration
-            },
-          },
-        },
-        temp1: {
-          title: "Temperature 1",
-          precision: 0,
-          units: "°c",
-          value: null,
-          identifier: "a",
-          calibration: {
-            A: {
-              name: "Cal A",
-              precision: 7,
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: 7,
-            },
-            B: {
-              name: "Cal B",
-              precision: 7,
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: 8,
-            },
-            C: {
-              name: "Cal C",
-              precision: 7,
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: 9,
-            },
-          },
-        },
-        temp2: {
-          title: "Temperature 2",
-          precision: 0,
-          units: "°c",
-          value: null,
-          identifier: "b",
-          calibration: {
-            A: {
-              name: "Cal A",
-              precision: 7,
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: 10,
-            },
-            B: {
-              name: "Cal B",
-              precision: 7,
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: 11,
-            },
-            C: {
-              name: "Cal C",
-              precision: 7,
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: 12,
-            },
-          },
-        },
-
-        launchMode: {
-          title: "Launch Mode Button",
-          precision: 0,
-          units: null,
-          value: 0,
-          identifier: "L",
-          calibration: {
-            placeholder: {
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: null, // no calibration
-            },
-          },
-        },
-        cycleView: {
-          title: "Next Screen Button",
-          precision: 0,
-          units: null,
-          value: 0,
-          identifier: "C",
-          calibration: {
-            placeholder: {
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: null, // no calibration
-            },
-          },
-        },
-        gearRatio: {
-          title: "Gear Ratio",
-          precision: 2,
-          units: null,
-          value: null,
-          identifier: "r",
-          calibration: {
-            placeholder: {
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: null, // no calibration
-            },
-          },
-        },
-        brakePressed: {
-          title: "Brake Switch",
-          precision: 0,
-          units: null,
-          value: 0,
-          identifier: "B",
-          calibration: {
-            inverted: {
-              name: "Inverted",
-              value: null,
-              changed: 0,
-              old: null,
-              floatIndex: null, // no calibration
-            },
-          },
-        },
-      },
+      eChook: {},
     };
   },
   created() {
     if ("serial" in navigator) {
       this.hasSerial = true;
     }
+  },
+  mounted() {
+    // Copy external data template to the Vue data object
+    this.eChook = ext.dataTemplate.eChook;
   },
   computed: {
     sendCalText() {
@@ -525,7 +218,6 @@ export default {
   },
   methods: {
     checkChange() {
-      console.log(`CheckChange`);
       this.changeCount = 0;
 
       //Checks for changes from fetched calibration
@@ -534,8 +226,12 @@ export default {
       for (let item in this.eChook.binary) {
         let tmp = this.eChook.binary[item];
         if (tmp.value != tmp.old) {
+          // console.log(`Binary change in ${tmp.name}`);
           tmp.changed = 1;
           this.changeCount++;
+          // console.log(`tmpVal: ${tmp.value}, oldVal: ${tmp.old}`);
+        } else {
+          tmp.changed = 0;
         }
       }
 
@@ -546,11 +242,19 @@ export default {
           for (let cal in tempChook.calibration) {
             let c = tempChook.calibration[cal];
             if (c.value != c.old) {
+              // console.log(`Float Change in ${c.name}`);
               c.changed = 1;
               this.changeCount++;
-            }else{
+            } else {
               c.changed = 0;
             }
+          }
+        } else if (item === "bluetoothName") {
+          if (this.eChook[item].value != this.eChook[item].old) {
+            this.eChook[item].changed = 1;
+            this.changeCount++;
+          } else {
+            this.eChook[item].changed = 0;
           }
         }
       }
@@ -865,17 +569,17 @@ export default {
       // this.eChook.binary.useHardcoded.value = CAL_A & 0x80;
       // this.eChook.binary.useHardcoded.old = CAL_A & 0x80;
 
-      this.eChook.binary.variableThrottle.value = CAL_A & 0x40;
-      this.eChook.binary.variableThrottle.old = CAL_A & 0x40;
+      this.eChook.binary.variableThrottle.value = CAL_A & 0x40 ? 1 : 0;
+      this.eChook.binary.variableThrottle.old = CAL_A & 0x40 ? 1 : 0;
 
-      this.eChook.binary.linearTempSensor.value = CAL_A & 0x20;
-      this.eChook.binary.linearTempSensor.old = CAL_A & 0x20;
+      this.eChook.binary.linearTempSensor.value = CAL_A & 0x20 ? 1 : 0;
+      this.eChook.binary.linearTempSensor.old = CAL_A & 0x20 ? 1 : 0;
 
-      this.eChook.binary.throttleOut.value = CAL_A & 0x10;
-      this.eChook.binary.throttleOut.old = CAL_A & 0x10;
+      this.eChook.binary.throttleOut.value = CAL_A & 0x10 ? 1 : 0;
+      this.eChook.binary.throttleOut.old = CAL_A & 0x10 ? 1 : 0;
 
-      this.eChook.binary.throttleRamp.value = CAL_A & 0x08;
-      this.eChook.binary.throttleRamp.old = CAL_A & 0x08;
+      this.eChook.binary.throttleRamp.value = CAL_A & 0x08 ? 1 : 0;
+      this.eChook.binary.throttleRamp.old = CAL_A & 0x08 ? 1 : 0;
 
       // this.eChook.binary.useHardcoded = CAL_A & 0x80;
       // this.eChook.binary.useHardcodedOld = CAL_A & 0x80;
@@ -960,11 +664,7 @@ export default {
         let text = "sn"; //Set Name
         data[0] = text.charCodeAt(0);
         data[1] = text.charCodeAt(1);
-        for (
-          let i = 0;
-          i < this.eChook.bluetoothName.value.length;
-          i++
-        ) {
+        for (let i = 0; i < this.eChook.bluetoothName.value.length; i++) {
           data[i + 2] = this.eChook.bluetoothName.value.charCodeAt(i);
           console.log(
             `Adding ${this.eChook.bluetoothName.value.charCodeAt(
@@ -1033,6 +733,96 @@ export default {
       data[1] = command.charCodeAt(1);
 
       this.serialWrite(data);
+    },
+    backupDownload() {
+      let backup = JSON.stringify(this.eChook);
+      let filename = `eChook Cal - ${
+        this.eChook.bluetoothName.value
+      } - ${this.getDmyString(new Date())}.ecb`;
+
+      var blob = new Blob([backup], {
+        type: "text/json;charset=utf-8;",
+      });
+      if (navigator.msSaveBlob) {
+        // IE 10+
+        navigator.msSaveBlob(blob, filename);
+      } else {
+        var link = document.createElement("a");
+        if (link.download !== undefined) {
+          // feature detection
+          // Browsers that support HTML5 download attribute
+          var url = URL.createObjectURL(blob);
+          link.setAttribute("href", url);
+          link.setAttribute("download", filename);
+          link.style.visibility = "hidden";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      }
+    },
+    async backupRestore() {
+      // var t = this;
+      console.log(`Entering Restore`);
+
+      // var localFile = $refs.jsonFile.files[0];
+      const [file] = document.querySelector("input[type=file]").files;
+      let reader = new FileReader();
+
+      reader.addEventListener("load", () => {
+        // console.log(`File Loaded`);
+        // console.log(`File Imported \n ${reader.result}`);
+        // Now to check and restore backup...
+        let newCal = JSON.parse(reader.result);
+        for (let item in this.eChook) {
+          if (Object.hasOwn(newCal, item)) {
+            if (item === "binary") {
+              for (let sub in this.eChook[item]) {
+                if (Object.hasOwn(newCal[item], sub)) {                 
+                  this.eChook[item][sub].value = newCal[item][sub].value?1:0;
+                }
+              }
+            } else if (item === "bluetoothName") {
+              if (Object.hasOwn(newCal[item], 'value')) {
+                this.eChook[item].value = newCal[item].value;
+              }
+            } else if (Object.hasOwn(newCal[item], "calibration")) {
+              // console.log(`Cal object Found`);
+              for (let cal in this.eChook[item].calibration) {
+                // console.log(
+                //   `Comparing new: ${JSON.stringify(
+                //     newCal[item].calibration[cal]
+                //   )} with ${JSON.stringify(this.eChook[item].calibration[cal])}`
+                // );
+                if (Object.hasOwn(newCal[item].calibration, cal)) {
+                  // console.log(
+                  //   `Updating ${cal} with ${newCal[item].calibration[cal].value}`
+                  // );
+                  this.eChook[item].calibration[cal].value =
+                    newCal[item].calibration[cal].value;
+                }
+              }
+            }
+          }
+          // console.log(`Item: ${item}`);
+        }
+        document.getElementById("fileButton").value = null;
+        this.checkChange();
+      });
+
+      if (file) {
+        reader.readAsText(file);
+      }
+    },
+    getDmyString(timestamp) {
+      let date = new Date();
+      date.setTime(timestamp);
+      let day = date.getDate() < 10 ? "0" + date.getDate() : date.getDate();
+      let month =
+        date.getMonth() + 1 < 10
+          ? "0" + (Number(date.getMonth()) + 1)
+          : date.getMonth() + 1;
+      return `${day}-${month}-${date.getFullYear()}`;
     },
   },
 };
@@ -1153,6 +943,10 @@ div {
   border-radius: 5px;
   font-weight: bold;
 }
+.binary-option:hover {
+  cursor: pointer;
+  user-select: none;
+}
 
 .binary-cal-container .active {
   background-image: linear-gradient(135deg, #70f570 10%, #49c628 100%);
@@ -1236,6 +1030,13 @@ div {
   min-width: 100px;
 }
 
+.no-cal{
+  height: 20px;
+  vertical-align: middle;
+  margin: auto;
+  padding-top:20px;
+}
+
 .bottom-menu {
   position: fixed;
   left: 0px;
@@ -1281,4 +1082,39 @@ input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+.tools-background{
+  z-index: 3;
+  top: 0px;
+  position: fixed;
+  width: 100vw;
+  height: 100vh;
+  background-color: #1c2331a0;
+  padding: 20vh 20vw;
+}
+
+.tools-container{
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  width: 60vw;
+  height: 60vh;
+  // margin:auto
+}
+
+// .two-col{
+//   display: grid;
+//   grid-template-columns: 1fr 1fr;
+// }
+
+// .c1{
+//   grid-column: 1;
+// }
+
+// .c2{
+//   grid-column: 2;
+// }
+
+// .ca{
+//   grid-column: 1 / 3;
+// }
 </style>
