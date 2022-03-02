@@ -162,7 +162,7 @@ import * as ext from "../scripts/dataTemplate.js";
 export default {
   data() {
     return {
-      tools: 1,
+      tools: 0,
       dataIn: "Starting String",
       hasSerial: 0,
       connected: false,
