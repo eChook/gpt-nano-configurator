@@ -1,24 +1,5 @@
-# gpt-nano-configurator
+# eChook GPT Configuration Website
+For use with the dev branch of the eChook GPT Arduino Nano code, this setup moves the calibration from the hard coded calibration.h file into the EEPROM on the Arduino.
+This Webapp connects to the eChook over serial to allow convenient set up, data viewing and calibration.
 
-## Project setup
-```
-npm install
-```
-
-### Compiles and hot-reloads for development
-```
-npm run serve
-```
-
-### Compiles and minifies for production
-```
-npm run build
-```
-
-### Lints and fixes files
-```
-npm run lint
-```
-
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+https://echook.github.io/gpt-nano-configurator/
