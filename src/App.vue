@@ -29,9 +29,9 @@ export default defineComponent({
   font-style: normal;
   font-weight: 400;
   src: local(''),
-       url('/assets/fonts/cabin-v18-latin-regular.woff2') format('woff2'), /* Super Modern Browsers */
-       url('/assets/fonts/cabin-v18-latin-regular.woff') format('woff'), /* Modern Browsers */
-       url('/assets/fonts/cabin-v18-latin-regular.ttf') format('truetype'), /* Safari, Android, iOS */
+       url('assets/fonts/cabin-v18-latin-regular.woff2') format('woff2'), /* Super Modern Browsers */
+       /* url('\assets/fonts/cabin-v18-latin-regular.woff') format('woff'), Modern Browsers */
+       /* url('\assets/fonts/cabin-v18-latin-regular.ttf') format('truetype'), Safari, Android, iOS */
 }
 
 /* oswald-regular - latin */
@@ -40,8 +40,8 @@ export default defineComponent({
   font-style: normal;
   font-weight: 400;
   src: local(''),
-       url('/assets/fonts/oswald-v41-latin-regular.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
-       url('/assets/fonts/oswald-v41-latin-regular.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+       url('assets/fonts/oswald-v41-latin-regular.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
+       /* url('\assets\fonts\oswald-v41-latin-regular.woff') format('woff'); Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
 }
 
 /* raleway-regular - latin */
@@ -50,8 +50,8 @@ export default defineComponent({
   font-style: normal;
   font-weight: 400;
   src: local(''),
-       url('/assets/fonts/raleway-v26-latin-regular.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
-       url('/assets/fonts/raleway-v26-latin-regular.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+       url('assets/fonts/raleway-v26-latin-regular.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
+       /* url('/assets/fonts/raleway-v26-latin-regular.woff') format('woff'); Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
 }
 /* raleway-500 - latin */
 /* @font-face {
