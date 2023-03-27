@@ -1018,9 +1018,11 @@ div {
 }
 
 .changed {
-  background-color: #e91e63;
+  // background-color: #e91e63;
+  border: 1px #e91e63 solid;
   border-radius: 3px;
-  color: #f9f9f9;
+  // color: #f9f9f9;
+  background-color: darken(#f9f9f9, 5%)
 }
 .cal-input {
   height: 2em;
