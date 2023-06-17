@@ -10,6 +10,7 @@
         </strong>
       </div>
       <p><button class="connect-button" @click="connect">Connect</button></p>
+      <p> Only <strong>Chrome</strong> and <strong>Edge</strong> Desktop Browsers Supported</p>
     </div>
     <!-- <button v-if="connected" @click="serialRequestAllCal">
       Get Calibration
