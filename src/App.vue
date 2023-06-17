@@ -1,4 +1,5 @@
 <template>
+  <link rel="shortcut icon" type="image/png" href="/static/favicon.png"/>
   <!-- <img alt="Vue logo" src="./assets/logo.png" />
   <HelloWorld msg="Welcome to Your Vue.js + TypeScript App" /> -->
   <Header />
