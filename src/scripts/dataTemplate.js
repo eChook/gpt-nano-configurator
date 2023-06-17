@@ -208,7 +208,7 @@ var dataTemplate = {
             },
         },
         throttleActual: {
-            title: "Throttle Output",
+            title: "Throttle Actual",
             precision: 1,
             units: "%",
             value: null,
