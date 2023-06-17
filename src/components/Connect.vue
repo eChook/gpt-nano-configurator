@@ -652,6 +652,7 @@ export default {
     },
     serialSendAllCal() {
       this.serialSendBtName();
+      this.serialSendBinaryData()
       this.serialSendFloatData();
     },
     serialSendBtName() {
@@ -708,9 +709,9 @@ export default {
       let data = new Uint8Array(4 + 2);
       data.fill(0);
 
-      if (this.eChook.binary.useHardcoded.value) {
-        data[2] = data[2] | 0x80;
-      }
+      // if (this.eChook.binary.useHardcoded.value) {
+      //   data[2] = data[2] | 0x80;
+      // }
 
       if (this.eChook.binary.variableThrottle.value) {
         data[2] = data[2] | 0x40;
