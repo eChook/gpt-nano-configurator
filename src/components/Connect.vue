@@ -10,6 +10,7 @@
         </strong>
       </div>
       <p><button class="connect-button" @click="connect">Connect</button></p>
+      <p> Only <strong>Chrome</strong> and <strong>Edge</strong> Desktop Browsers Supported</p>
     </div>
     <!-- <button v-if="connected" @click="serialRequestAllCal">
       Get Calibration
@@ -41,47 +42,27 @@
         <!-- <div class="serial-view">{{ inputBuffer }}</div> -->
         <div class="value-container ca">
           <div class="value-title">Device Information</div>
-          <div
-            class="live-calibration"
-            v-bind:class="{ changed: eChook.bluetoothName.changed }"
-          >
+          <div class="live-calibration" v-bind:class="{ changed: eChook.bluetoothName.changed }">
             <div class="title">Name</div>
-            <input
-              class="cal-input"
-              type="text"
-              @input="checkChange"
-              v-model="eChook.bluetoothName.value"
-            />
+            <input class="cal-input" type="text" @input="checkChange" v-model="eChook.bluetoothName.value" />
           </div>
         </div>
 
         <div class="value-container binary ca">
           <div class="value-title">Setting Toggles</div>
           <template v-for="item in eChook.binary" v-bind:key="item">
-            <div
-              v-if="!item.hidden"
-              class="binary-cal-container"
-              v-bind:class="{ changed: item.changed }"
-            >
+            <div v-if="!item.hidden" class="binary-cal-container" v-bind:class="{ changed: item.changed }">
               <div class="title">{{ item.name }}</div>
-              <div
-                class="binary-option"
-                @click="
-                  item.value = 1;
-                  checkChange();
-                "
-                v-bind:class="{ active: item.value }"
-              >
+              <div class="binary-option" @click="
+                item.value = 1;
+              checkChange();
+              " v-bind:class="{ active: item.value }">
                 {{ item.op1 }}
               </div>
-              <div
-                class="binary-option"
-                @click="
-                  item.value = 0;
-                  checkChange();
-                "
-                v-bind:class="{ active: !item.value }"
-              >
+              <div class="binary-option" @click="
+                item.value = 0;
+              checkChange();
+              " v-bind:class="{ active: !item.value }">
                 {{ item.op2 }}
               </div>
             </div>
@@ -104,21 +85,15 @@
             </div>
             <!-- <div v-if="item.calibration"> -->
             <template v-for="cal in item.calibration" v-bind:key="cal">
-              <div
-                v-if="cal.value != null"
-                class="live-calibration"
-                v-bind:class="{ changed: cal.changed }"
-              >
+              <div v-if="cal.value != null" class="live-calibration" v-bind:class="{ changed: cal.changed }">
                 <div class="title">{{ cal.name }}:</div>
-                <input
-                  class="cal-input"
-                  @input="checkChange"
-                  type="number"
-                  v-model="cal.value"
-                />
+                <input class="cal-input" @input="checkChange" type="number" v-model="cal.value" />
                 <div>{{ cal.unit }}</div>
                 <!-- {{ cal.value }}  -->
-              </div> <div v-else><div class="title no-cal">Not Calibratable</div></div>
+              </div>
+              <div v-else>
+                <div class="title no-cal">Not Calibratable</div>
+              </div>
             </template>
             <!-- </div> -->
           </div>
@@ -129,17 +104,8 @@
         <div @click="disconnectPort" class="button disconnect">Disconnect</div>
         <div @click="resetEchook" class="button disconnect">Reset eChook</div>
         <div class="button" @click="backupDownload">Backup Config</div>
-        <div
-          class="button"
-          onclick="document.getElementById('fileButton').click();"
-        >
-          <input
-            id="fileButton"
-            style="display: none"
-            type="file"
-            ref="jsonFile"
-            @change="backupRestore"
-          />
+        <div class="button" onclick="document.getElementById('fileButton').click();">
+          <input id="fileButton" style="display: none" type="file" ref="jsonFile" @change="backupRestore" />
           Restore Backup
         </div>
         <div class="button send-data" @click="serialSendAllCal">
@@ -149,15 +115,13 @@
     </div>
   </div>
 
-<!-- Calibration Tools -->
-<div class="tools-background" v-if="tools">
-  <div class="tools-container">
-    <div class="title">Calibration Tools</div>
+  <!-- Calibration Tools -->
+  <div class="tools-background" v-if="tools">
+    <div class="tools-container">
+      <div class="title">Calibration Tools</div>
+    </div>
+
   </div>
-
-</div>
-
-
 </template>
 
 <script>
@@ -352,7 +316,7 @@ export default {
                   if (
                     String.fromCharCode(
                       this.inputBuffer[
-                        i - this.serialCalibration.floatCalArrayLength + 1
+                      i - this.serialCalibration.floatCalArrayLength + 1
                       ]
                     ) === "["
                   ) {
@@ -360,7 +324,7 @@ export default {
                     if (
                       String.fromCharCode(
                         this.inputBuffer[
-                          i - this.serialCalibration.floatCalArrayLength + 2
+                        i - this.serialCalibration.floatCalArrayLength + 2
                         ]
                       ) === this.serialCalibration.floatCalIdentifier
                     ) {
@@ -393,7 +357,7 @@ export default {
                   if (
                     String.fromCharCode(
                       this.inputBuffer[
-                        i - this.serialCalibration.binaryCalArrayLength + 1
+                      i - this.serialCalibration.binaryCalArrayLength + 1
                       ]
                     ) === "["
                   ) {
@@ -402,7 +366,7 @@ export default {
                     if (
                       String.fromCharCode(
                         this.inputBuffer[
-                          i - this.serialCalibration.binaryCalArrayLength + 2
+                        i - this.serialCalibration.binaryCalArrayLength + 2
                         ]
                       ) === this.serialCalibration.binaryCalIdentifier
                     ) {
@@ -437,7 +401,7 @@ export default {
                   if (
                     String.fromCharCode(
                       this.inputBuffer[
-                        i - this.serialCalibration.btNameArrayLength + 1
+                      i - this.serialCalibration.btNameArrayLength + 1
                       ]
                     ) === "["
                   ) {
@@ -446,7 +410,7 @@ export default {
                     if (
                       String.fromCharCode(
                         this.inputBuffer[
-                          i - this.serialCalibration.btNameArrayLength + 2
+                        i - this.serialCalibration.btNameArrayLength + 2
                         ]
                       ) === this.serialCalibration.btNameIdentifier
                     ) {
@@ -675,8 +639,14 @@ export default {
       this.serialWrite(data);
     },
     serialSendAllCal() {
-      this.serialSendBtName();
-      this.serialSendFloatData();
+      // Space out the data transmission - avoids occasional arduino freeze.
+      this.serialSendBinaryData()
+      setTimeout(() => { // 
+        this.serialSendFloatData();
+      }, 400);
+      setTimeout(() => { // 
+        this.serialSendBtName();
+      }, 800);
     },
     serialSendBtName() {
       if (
@@ -732,9 +702,9 @@ export default {
       let data = new Uint8Array(4 + 2);
       data.fill(0);
 
-      if (this.eChook.binary.useHardcoded.value) {
-        data[2] = data[2] | 0x80;
-      }
+      // if (this.eChook.binary.useHardcoded.value) {
+      //   data[2] = data[2] | 0x80;
+      // }
 
       if (this.eChook.binary.variableThrottle.value) {
         data[2] = data[2] | 0x40;
@@ -760,9 +730,8 @@ export default {
     },
     backupDownload() {
       let backup = JSON.stringify(this.eChook);
-      let filename = `eChook Cal - ${
-        this.eChook.bluetoothName.value
-      } - ${this.getDmyString(new Date())}.ecb`;
+      let filename = `eChook Cal - ${this.eChook.bluetoothName.value
+        } - ${this.getDmyString(new Date())}.ecb`;
 
       var blob = new Blob([backup], {
         type: "text/json;charset=utf-8;",
@@ -802,8 +771,8 @@ export default {
           if (Object.hasOwn(newCal, item)) {
             if (item === "binary") {
               for (let sub in this.eChook[item]) {
-                if (Object.hasOwn(newCal[item], sub)) {                 
-                  this.eChook[item][sub].value = newCal[item][sub].value?1:0;
+                if (Object.hasOwn(newCal[item], sub)) {
+                  this.eChook[item][sub].value = newCal[item][sub].value ? 1 : 0;
                 }
               }
             } else if (item === "bluetoothName") {
@@ -872,13 +841,11 @@ div {
   //Gradient
   background: #007aa5;
   background: linear-gradient(to bottom, #007aa5 0%, #006b96 100%);
-  background: -webkit-gradient(
-    linear,
-    left top,
-    left bottom,
-    color-stop(0%, #007aa5),
-    color-stop(100%, #006b96)
-  );
+  background: -webkit-gradient(linear,
+      left top,
+      left bottom,
+      color-stop(0%, #007aa5),
+      color-stop(100%, #006b96));
   background: -webkit-linear-gradient(top, #007aa5 0%, #006b96 100%);
   background: -moz-linear-gradient(top, #007aa5 0%, #006b96 100%);
   background: -o-linear-gradient(top, #007aa5 0%, #006b96 100%);
@@ -938,6 +905,7 @@ div {
   word-wrap: break-word;
   overflow: scroll;
 }
+
 .values-container {
   display: flex;
   flex-direction: column;
@@ -967,6 +935,7 @@ div {
   border-radius: 5px;
   font-weight: bold;
 }
+
 .binary-option:hover {
   cursor: pointer;
   user-select: none;
@@ -980,6 +949,7 @@ div {
   width: 250px;
   margin: auto 0;
 }
+
 .value-container {
   display: flex;
   flex-direction: row;
@@ -1035,6 +1005,7 @@ div {
   margin-bottom: 5px;
   font-family: Cabin 400;
 }
+
 .live-calibration {
   margin: 1px 3px;
   padding: 3px 8px;
@@ -1048,6 +1019,7 @@ div {
   // color: #f9f9f9;
   background-color: darken(#f9f9f9, 5%)
 }
+
 .cal-input {
   height: 2em;
   border: darken(#f9f9f9, 10%) solid 1px;
@@ -1056,11 +1028,11 @@ div {
   min-width: 100px;
 }
 
-.no-cal{
+.no-cal {
   height: 20px;
   vertical-align: middle;
   margin: auto;
-  padding-top:20px;
+  padding-top: 20px;
 }
 
 .bottom-menu {
@@ -1109,7 +1081,7 @@ input::-webkit-inner-spin-button {
   margin: 0;
 }
 
-.tools-background{
+.tools-background {
   z-index: 3;
   top: 0px;
   position: fixed;
@@ -1119,7 +1091,7 @@ input::-webkit-inner-spin-button {
   padding: 20vh 20vw;
 }
 
-.tools-container{
+.tools-container {
   background-color: #f9f9f9;
   border-radius: 10px;
   width: 60vw;

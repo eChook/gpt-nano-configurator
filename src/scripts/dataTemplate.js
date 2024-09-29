@@ -230,7 +230,7 @@ var dataTemplate = {
             helper: "This is the interpreted throttle percentage from the input voltage. For variable throttle, the lower and upper voltages define 0% and 100%, with voltages between being interpreted linearly. For pushbutton throttles, a voltage above the upper voltage is 100%, and below the lower voltages is 0%",
         },
         throttleActual: {
-            title: "Throttle Output",
+            title: "Throttle Actual",
             precision: 1,
             units: "%",
             value: null,
