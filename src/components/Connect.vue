@@ -94,7 +94,10 @@
             class="value-container c1"
             v-bind:class="{ c2: !item.calibratable }"
           >
-            <div class="value-title">{{ item.title }}</div>
+            <div class="value-title">{{ item.title }}
+            <!-- <template v-if="Object.hasOwn(item, 'helper')">
+            <div>? BUTTON</div></template> -->
+          </div>
             <div v-if="item.value != null" class="live-value">
               <!-- <div class="title">Live Data:</div> -->
               {{ item.value }} {{ item.units }}
@@ -124,6 +127,7 @@
       <div style="height: 100px"></div>
       <div class="bottom-menu">
         <div @click="disconnectPort" class="button disconnect">Disconnect</div>
+        <div @click="resetEchook" class="button disconnect">Reset eChook</div>
         <div class="button" @click="backupDownload">Backup Config</div>
         <div
           class="button"
@@ -190,6 +194,8 @@ export default {
         floatCalIdentifier: "f",
         btNameArrayLength: 33,
         btNameIdentifier: "n",
+        versionArrayLength: 8,
+        versionIdentifier: "v",
       },
       eChook: {},
     };
@@ -281,6 +287,20 @@ export default {
         this.reader = this.port.readable.getReader();
         // this.writer = this.port.writable.getWriter();
         this.closed = this.readLoop();
+      }
+    },
+    resetEchook(){
+      if (confirm("This will revert your eChook to default settings. Once done, unplug then reconnect the eChook")) {
+        let data = new Uint8Array(2);
+        let text = "C"; // Clear EEPROM
+        data[0] = text.charCodeAt(0);
+        this.serialWrite(data);
+        // setTimeout(() => {
+        // this.disconnectPort();  
+        // }, 500);
+        
+      } else {
+        
       }
     },
     async disconnectPort() {
@@ -493,7 +513,10 @@ export default {
     },
     eChookDataDecode(id, byte1, byte2) {
       if (this.waitingForData) {
+        // Requested here as incoming data indicates serial connection alive (iirc!)
         this.waitingForData = 0;
+        // this.serialRequestAllCal();
+        this.serialRequestSWVersion();
         this.serialRequestFloatCal();
         this.serialRequestBinaryCal();
         this.serialRequestBTName();
@@ -611,6 +634,7 @@ export default {
       this.writer.releaseLock();
     },
     serialRequestAllCal() {
+      this.serialRequestSWVersion();
       this.serialRequestFloatCal();
       this.serialRequestBinaryCal();
       this.serialRequestBTName();
@@ -624,7 +648,7 @@ export default {
     },
     serialRequestSWVersion() {
       let data = new Uint8Array(2);
-      let text = "gs"; // Request Software version
+      let text = "gv"; // Request Software version
       data[0] = text.charCodeAt(0);
       data[1] = text.charCodeAt(1);
       this.serialWrite(data);

@@ -72,14 +72,16 @@ var dataTemplate = {
             calibratable: 1,
             calibration: {
                 voltage: {
-                    name: "Voltage",
-                    units: "Volts",
+                    name: "Internal Reference",
+                    precision: 2,
+                    unit: "Volts",
                     value: null,
                     changed: 0,
                     old: null,
-                    floatIndex: null, // no calibration
+                    floatIndex: 16,
                 },
             },
+            helper: "The older Arduino Nanos can measure the rail voltage vs a stable ~1.1v internal reference. The Arduino Nano Every can't do this. Tweak the internal reference voltage until the reading matches the multimeter measured voltage on the +5V test point on the board.",
         },
         speed: {
             title: "Speed",
@@ -178,11 +180,30 @@ var dataTemplate = {
                     floatIndex: 5,
                 },
             },
+            
         },
-        throttleInput: {
-            title: "Throttle Input",
+        throttleVoltage: {
+            title: "Throttle Input Voltage",
             precision: 2,
             units: "V",
+            value: null,
+            identifier: "T",
+            calibratable: 0,
+            calibration: {
+                multiplier: {
+                    value: null, // Not used, but present to keep the object iterable in the template
+                    precision: 1,
+                    changed: 0,
+                    old: null,
+                    floatIndex: null,
+                },
+            },
+            helper: "This is the voltage seen by the Arduino on the Throttle Input",
+        },
+        throttleInput: {
+            title: "Throttle Input Percentage",
+            precision: 2,
+            units: "%",
             value: null,
             identifier: "t",
             calibratable: 1,
@@ -206,6 +227,7 @@ var dataTemplate = {
                     floatIndex: 14,
                 },
             },
+            helper: "This is the interpreted throttle percentage from the input voltage. For variable throttle, the lower and upper voltages define 0% and 100%, with voltages between being interpreted linearly. For pushbutton throttles, a voltage above the upper voltage is 100%, and below the lower voltages is 0%",
         },
         throttleActual: {
             title: "Throttle Output",
@@ -223,6 +245,7 @@ var dataTemplate = {
                     floatIndex: null,
                 },
             },
+            helper:"This is the output PWM percentage for the motor driver",
         },
         temp3: {
             title: "Temperature eChook",
@@ -239,6 +262,7 @@ var dataTemplate = {
                     floatIndex: null, // no calibration
                 },
             },
+            helper: "Internal Temperature of the Arduino from the on-chip sensor",
         },
         temp1: {
             title: "Temperature 1",
@@ -377,4 +401,4 @@ var dataTemplate = {
     },
 }
 
-export {dataTemplate}
+export { dataTemplate }
