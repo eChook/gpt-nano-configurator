@@ -37,6 +37,9 @@
       <div></div>
       <div></div>
     </div>
+    <div v-if="connected && waitingForData">
+      {{ inputBuffer }}
+    </div>
     <div class="ca" v-if="connected && !waitingForData">
       <div class="values-container two-col">
         <!-- <div class="serial-view">{{ inputBuffer }}</div> -->
@@ -70,15 +73,11 @@
         </div>
 
         <template v-for="item in eChook" v-bind:key="item">
-          <div
-            v-if="item.title && !item.hidden"
-            class="value-container c1"
-            v-bind:class="{ c2: !item.calibratable }"
-          >
+          <div v-if="item.title && !item.hidden" class="value-container c1" v-bind:class="{ c2: !item.calibratable }">
             <div class="value-title">{{ item.title }}
-            <!-- <template v-if="Object.hasOwn(item, 'helper')">
+              <!-- <template v-if="Object.hasOwn(item, 'helper')">
             <div>? BUTTON</div></template> -->
-          </div>
+            </div>
             <div v-if="item.value != null" class="live-value">
               <!-- <div class="title">Live Data:</div> -->
               {{ item.value }} {{ item.units }}
@@ -87,7 +86,7 @@
             <template v-for="cal in item.calibration" v-bind:key="cal">
               <div v-if="cal.value != null" class="live-calibration" v-bind:class="{ changed: cal.changed }">
                 <div class="title">{{ cal.name }}:</div>
-                <input class="cal-input" @input="checkChange" type="number" v-model="cal.value" />
+                <input class="cal-input" @input="checkChange" type="number" step="any" v-model="cal.value" />
                 <div>{{ cal.unit }}</div>
                 <!-- {{ cal.value }}  -->
               </div>
@@ -248,12 +247,16 @@ export default {
         this.inputBuffer = new Uint8Array(0);
         this.connected = true;
         console.log("Open");
+        setTimeout(() => {
+          this.serialRequestFloatCal(); // Hacky trigger to start Nano Every sending data  
+        }, 300);
+
         this.reader = this.port.readable.getReader();
         // this.writer = this.port.writable.getWriter();
         this.closed = this.readLoop();
       }
     },
-    resetEchook(){
+    resetEchook() {
       if (confirm("This will revert your eChook to default settings. Once done, unplug then reconnect the eChook")) {
         let data = new Uint8Array(2);
         let text = "C"; // Clear EEPROM
@@ -262,9 +265,9 @@ export default {
         // setTimeout(() => {
         // this.disconnectPort();  
         // }, 500);
-        
+
       } else {
-        
+
       }
     },
     async disconnectPort() {
@@ -594,6 +597,7 @@ export default {
       } catch (e) {
         console.log(`Failed to open Write Stream`);
       }
+      console.log(`Serial Send - ${data}`)
       this.writer.write(data);
       this.writer.releaseLock();
     },
@@ -674,6 +678,9 @@ export default {
       let floatData = new Float32Array(20);
       let view = new DataView(floatData.buffer);
 
+      // // Manually Build float cal array
+      // let fc = [];
+      // fc[0] = this.eChook.transmitInterval
       for (let item in this.eChook) {
         let tempChook = this.eChook[item];
         if ({}.hasOwnProperty.call(this.eChook[item], "calibration")) {

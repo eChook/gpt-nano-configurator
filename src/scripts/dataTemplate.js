@@ -63,6 +63,27 @@ var dataTemplate = {
                 },
             },
         },
+        referenceVoltageStatic: {
+            title: "Reference Voltage",
+            precision: 2,
+            units: "V",
+            value: null,
+            identifier: "V",
+            calibratable: 1,
+            hidden: 1,
+            calibration: {
+                voltage: {
+                    name: "Internal Reference",
+                    precision: 2,
+                    unit: "Volts",
+                    value: null,
+                    changed: 0,
+                    old: null,
+                    floatIndex: 3,
+                },
+            },
+            helper: "The older Arduino Nanos can measure the rail voltage vs a stable ~1.1v internal reference. The Arduino Nano Every can't do this. Tweak the internal reference voltage until the reading matches the multimeter measured voltage on the +5V test point on the board.",
+        },
         referenceVoltage: {
             title: "Reference Voltage",
             precision: 2,
