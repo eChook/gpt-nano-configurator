@@ -34,7 +34,7 @@ var dataTemplate = {
                 op2: "Thermistor",
                 value: null,
                 old: null,
-                hidden: 0,
+                hidden: 1,
                 changed: 0,
             },
         },
