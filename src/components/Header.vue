@@ -1,7 +1,7 @@
 <template>
   <div class="header-container">
     <div class="logo">eChook</div>
-    <div class="site-header">Greenpower Telemetry Calibration</div>
+    <div class="site-header">eChook Nano Configuration</div>
   </div>
 </template>
 
@@ -23,27 +23,34 @@ export default {
   left: 0px;
   display: grid;
   grid-template-columns: 175px 1fr 175px;
-  background-color: #1c2331;
+  background-color: var(--app-bg);
+  border-bottom: 2px solid var(--glass-border);
+  z-index: 10;
 }
 
 .logo {
   grid-column: 1;
-  background-color: #e91e63;
-  font-family: Oswald;
+  background-color: var(--rosewood);
+  font-family: 'Oswald', sans-serif;
   text-align: right;
   vertical-align: bottom;
   height: 70px;
-  color: #f9f9f9;
+  color: var(--ghost-white);
   font-size: 50px;
-  padding-right: 10px;
+  padding-right: 15px;
   padding-bottom: 5px;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.2);
 }
+
 .site-header {
   grid-column: 2;
-  color: #f9f9f9;
+  color: var(--ghost-white);
   height: 70px;
-  font-size: 30px;
-  font-family: Cabin, sans-serif;
-  padding-top: 20px;
+  font-size: 24px;
+  font-family: 'Cabin', sans-serif;
+  padding-top: 22px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0.9;
 }
 </style>
