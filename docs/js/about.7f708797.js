@@ -1,0 +1,2 @@
+"use strict";(self["webpackChunkgpt_nano_configurator"]=self["webpackChunkgpt_nano_configurator"]||[]).push([[594],{4824:function(n,t,u){u.r(t),u.d(t,{default:function(){return l}});var a=u(641);const r={class:"about"},o=(0,a.Lk)("h1",null,"This is an about page",-1),c=[o];function e(n,t){return(0,a.uX)(),(0,a.CE)("div",r,c)}var s=u(6262);const i={},f=(0,s.A)(i,[["render",e]]);var l=f}}]);
+//# sourceMappingURL=about.7f708797.js.map
