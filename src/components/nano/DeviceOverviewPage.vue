@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="page-narrow">
     <div class="setup-row" :class="{ highlight: eChook.bluetoothName.value === 'eChook' }">
       <span v-if="eChook.bluetoothName.value === 'eChook'" class="setup-hint">First time with this board? Run the setup wizard to set its name, throttle behaviour and speed sensor.</span>
       <DsButton variant="secondary" size="sm" style="margin-left:auto" @click="$emit('run-setup')">Setup wizard</DsButton>
@@ -22,7 +22,7 @@
           <div class="stat-label">Firmware Version</div>
           <div class="stat-row">
             <div class="stat-value">{{ swVersionDisplay }}</div>
-            <a v-if="updateAvailable" href="https://github.com/eChook/eChook-Nano/releases" target="_blank" rel="noopener" class="update-pill">Update available</a>
+            <a v-if="updateAvailable" href="https://github.com/eChook/eChook-Arduino-Nano/releases" target="_blank" rel="noopener" class="update-pill">Update available</a>
           </div>
         </div>
         <div>
@@ -188,6 +188,10 @@ export default {
 </script>
 
 <style scoped>
+.page-narrow {
+  max-width: 900px;
+  margin: 0 auto;
+}
 .setup-row {
   display: flex;
   align-items: center;
