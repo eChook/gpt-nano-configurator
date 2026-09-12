@@ -1,0 +1,7 @@
+/* Oswald is already self-hosted via @font-face in App.vue - reuse it instead of the
+   Google Fonts CDN import the design mockup used. */
+:root {
+  --font-display: 'Oswald', sans-serif;
+  --font-sans: 'Cabin', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
