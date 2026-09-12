@@ -1,157 +1,164 @@
 <template>
-  <div class="background">
-    <div class="disconnected overlay" v-if="!connected">
-      <div class="info-large">
-        <strong>
-          Plug in your eChook Nano via USB or connect via Bluetooth
-          <p>then</p>
-        </strong>
-      </div>
-      <p><button class="connect-button" @click="connect">Connect</button></p>
-      <div class="demo-trigger" @click="mockConnect">Demo Mode</div>
-      <p> Only <strong>Chrome</strong> and <strong>Edge</strong> Desktop Browsers Supported</p>
-    </div>
-    <!-- <button v-if="connected" @click="serialRequestAllCal">
-      Get Calibration
-    </button> -->
-    <!-- <button v-if="connected" @click="serialSendBinaryData">Send Binary</button> -->
-    <!-- <button v-if="connected" @click="serialToggleData">Toggle Data</button> -->
-    <!-- <h2>
-      {{
-        connected
-          ? waitingForData
-            ? "Waiting for Data..."
-            : "Connected"
-          : "Disconnected"
-      }}
-    </h2> -->
-    <div v-if="connected && waitingForData" class="lds-grid">
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-    </div>
-    <div v-if="connected && waitingForData">
-      {{ inputBuffer }}
-    </div>
-    <div class="ca" v-if="connected && !waitingForData">
-      <div class="values-container two-col">
-        <div class="top-controls">
-          <div class="value-container ca">
-            <div class="value-title">Device Information</div>
-            <div class="live-calibration" v-bind:class="{ changed: eChook.bluetoothName.changed }">
-              <div class="title">Name</div>
-              <input class="cal-input" type="text" @input="checkChange" v-model="eChook.bluetoothName.value" />
-            </div>
-            <div class="live-calibration" v-if="protocolVersion === 2">
-              <div class="title">Hardware</div>
-              <div class="cal-input"
-                style="border:none; padding-top:4px; font-weight:bold; background-color:transparent;">{{ deviceType }}
-              </div>
-            </div>
-          </div>
+  <ConnectScreen
+    v-if="!connected || waitingForData"
+    :connecting="connecting || (connected && waitingForData)"
+    :has-serial="hasSerial"
+    @connect="connect"
+    @demo="mockConnect"
+  />
 
-          <div class="value-container binary ca">
-            <div class="value-title">Setting Toggles</div>
-            <template v-for="(item, itemKey) in eChook.binary" v-bind:key="`binary-${itemKey}`">
-              <div v-if="!item.hidden" class="binary-cal-container" v-bind:class="{ changed: item.changed }">
-                <div class="title">{{ item.name }}</div>
-                <div class="binary-option" @click="
-                  item.value = 1;
-                checkChange();
-                " v-bind:class="{ active: item.value }">
-                  {{ item.op1 }}
-                </div>
-                <div class="binary-option" @click="
-                  item.value = 0;
-                checkChange();
-                " v-bind:class="{ active: !item.value }">
-                  {{ item.op2 }}
-                </div>
-              </div>
-            </template>
-          </div>
+  <div v-else class="app-shell">
+    <AppHeader :name="eChook.bluetoothName.value" @disconnect="disconnectPort" />
+    <div class="app-body">
+      <DsNavRail :items="navItems" :active-id="tab" @select="(id) => (tab = id)" />
+      <div class="app-main">
+        <div class="app-scroll">
+          <DeviceOverviewPage
+            v-if="tab === 'overview'"
+            :e-chook="eChook"
+            :ordered-display-items="orderedDisplayItems"
+            :change-count="changeCount"
+            :magnets-locked="magnetsLocked"
+            :device-type="deviceType"
+            :sw-version-display="swVersionDisplay"
+            :update-available="updateAvailable"
+            :five-volt-live="fiveVoltLive"
+            @changed="checkChange"
+            @run-setup="openWizard('setup')"
+            @open-wizard="openWizard"
+            @open-voltage-wizard="openVoltageWizard"
+            @open-fivevolt-wizard="openWizard('fiveVoltRail')"
+          />
+          <SettingsPage v-else-if="tab === 'settings'" :binary="eChook.binary" @changed="checkChange" />
+          <BackupPage
+            v-else-if="tab === 'backup'"
+            @backup="backupDownload"
+            @restore-file="handleRestoreFileSelected"
+            @reset="resetModalOpen = true"
+          />
         </div>
-
-        <div class="cards-grid">
-          <div class="cards-column left-column">
-            <template v-for="entry in leftColumnItems" v-bind:key="`nc-${entry.key}`">
-              <div class="value-container compact-card">
-                <div class="value-title">{{ entry.item.title }}</div>
-                <div v-if="entry.item.value != null" class="live-value">
-                  {{ entry.item.value }} {{ entry.item.units }}
-                </div>
-              </div>
-            </template>
-          </div>
-
-          <div class="cards-column right-column">
-            <template v-for="entry in rightColumnItems" v-bind:key="`c-${entry.key}`">
-              <div class="value-container calibratable-card">
-                <div class="value-title">{{ entry.item.title }}</div>
-                <div class="calibratable-layout">
-                  <div class="live-value live-value-square">
-                    <span class="reading-value">{{ entry.item.value != null ? entry.item.value : "--" }}</span>
-                    <span v-if="entry.item.units" class="reading-unit">{{ entry.item.units }}</span>
-                  </div>
-                  <div class="calibration-stack">
-                    <template v-for="(cal, calKey) in entry.item.calibration" v-bind:key="`${entry.key}-${calKey}`">
-                      <div
-                        v-if="cal.floatIndex != null || cal.name"
-                        class="live-calibration"
-                        v-bind:class="{ changed: cal.changed }">
-                        <div class="title">{{ cal.name }}:</div>
-                        <input class="cal-input" @input="checkChange" type="number" step="any" v-model="cal.value" />
-                        <div>{{ cal.unit }}</div>
-                      </div>
-                    </template>
-                  </div>
-                </div>
-              </div>
-            </template>
-          </div>
-        </div>
-      </div>
-      <div style="height: 100px"></div>
-      <div class="bottom-menu">
-        <div @click="disconnectPort" class="button disconnect">Disconnect</div>
-        <div @click="resetEchook" class="button disconnect">Reset eChook</div>
-        <div class="button" @click="backupDownload">Backup Config</div>
-        <div class="button" onclick="document.getElementById('fileButton').click();">
-          <input id="fileButton" style="display: none" type="file" ref="jsonFile" @change="backupRestore" />
-          Restore Backup
-        </div>
-        <div class="button send-data" @click="serialSendAllCal">
-          {{ sendCalText }}
-        </div>
+        <BottomBar :count="changeCount" @send="sendModalOpen = true" />
       </div>
     </div>
-  </div>
 
-  <!-- Calibration Tools -->
-  <div class="tools-background" v-if="tools">
-    <div class="tools-container">
-      <div class="title">Calibration Tools</div>
-    </div>
+    <WizardModal
+      v-if="activeWizard === 'setup'"
+      title="Setup wizard"
+      :steps="setupSteps"
+      @close="closeWizard"
+      @finish="finishSetupWizard"
+    />
+    <WizardModal
+      v-if="activeWizard === 'speed'"
+      title="Speed sensor calibration"
+      :steps="speedWizardSteps"
+      @close="closeWizard"
+      @finish="finishSpeedWizard"
+    />
+    <WizardModal
+      v-if="activeWizard === 'fiveVoltRail'"
+      title="Calibrate 5V rail"
+      :steps="fiveVoltWizardSteps"
+      @close="closeWizard"
+      @finish="finishFiveVoltWizard"
+    />
+    <WizardModal
+      v-if="activeWizard === 'voltage-total' || activeWizard === 'voltage-lower'"
+      :title="(activeWizard === 'voltage-total' ? 'Voltage (Total)' : 'Voltage (Lower)') + ' calibration'"
+      :steps="voltageWizardSteps"
+      @close="closeWizard"
+      @finish="finishVoltageWizard"
+    />
 
+    <DsModal
+      v-if="sendModalOpen"
+      title="Send changes to eChook?"
+      :description="`${changeCount} value${changeCount === 1 ? '' : 's'} will be written to the board's EEPROM.`"
+      confirm-label="Send changes"
+      @cancel="sendModalOpen = false"
+      @confirm="confirmSend"
+    >
+      <template #extra>
+        <div class="diff-list">
+          <ReviewRow v-for="(d, i) in buildDiffs()" :key="i" :label="d.label" :value="`${d.from} → ${d.to}`" />
+        </div>
+      </template>
+    </DsModal>
+
+    <DsModal
+      v-if="resetModalOpen"
+      title="Reset eChook to defaults?"
+      description="This clears the EEPROM and reverts every calibration value and setting. Once done, unplug then reconnect the eChook."
+      danger
+      confirm-label="Reset eChook"
+      @cancel="resetModalOpen = false"
+      @confirm="confirmReset"
+    />
+
+    <DsModal
+      v-if="restoreModalOpen"
+      title="Load backup?"
+      description="Loading this file will overwrite the values currently loaded below. Nothing is written to the board until you send changes."
+      confirm-label="Load backup"
+      @cancel="restoreModalOpen = false"
+      @confirm="confirmRestore"
+    />
+
+    <Toast :text="toast" />
   </div>
 </template>
 
 <script>
 import * as ext from "../scripts/dataTemplate.js";
-// console.log(`imported: ${JSON.stringify(ext.dataTemplate.eChook)}`);
+import { computed } from "vue";
+
+import ConnectScreen from "./nano/ConnectScreen.vue";
+import AppHeader from "./nano/Header.vue";
+import DsNavRail from "./ds/NavRail.vue";
+import DeviceOverviewPage from "./nano/DeviceOverviewPage.vue";
+import SettingsPage from "./nano/SettingsPage.vue";
+import BackupPage from "./nano/BackupPage.vue";
+import BottomBar from "./nano/BottomBar.vue";
+import WizardModal from "./nano/WizardModal.vue";
+import DsModal from "./ds/Modal.vue";
+import ReviewRow from "./nano/ReviewRow.vue";
+import Toast from "./nano/Toast.vue";
+import { Bolt, Gear, Archive } from "./icons/nanoIcons";
+import { buildSetupSteps, buildSpeedWizardSteps, buildFiveVoltWizardSteps, buildVoltageWizardSteps } from "./nano/wizardSteps.js";
+
+// Latest published firmware, as major.minor.patch. Bump on each firmware
+// release, or read it from the release manifest once one is published.
+const LATEST_FIRMWARE = { major: 2, minor: 4, patch: 3 };
+
+// Firmware from which a single wheel magnet is required.
+const MAGNETS_LOCKED_FROM = { major: 2, minor: 1, patch: 0 };
+
+// Comparator over {major, minor, patch}: negative if a is older than b.
+function compareVersion(a, b) {
+  return (a.major - b.major) || (a.minor - b.minor) || (a.patch - b.patch);
+}
+
 export default {
+  components: {
+    ConnectScreen,
+    AppHeader,
+    DsNavRail,
+    DeviceOverviewPage,
+    SettingsPage,
+    BackupPage,
+    BottomBar,
+    WizardModal,
+    DsModal,
+    ReviewRow,
+    Toast,
+  },
   data() {
     return {
       tools: 0,
       dataIn: "Starting String",
       hasSerial: 0,
       connected: false,
+      connecting: false,
       waitingForData: true,
       connectFailed: false,
       connectColor: "primary",
@@ -180,8 +187,19 @@ export default {
       },
       protocolVersion: 1,
       deviceType: "Unknown",
+      firmwareVersion: null,
       ackResolver: null,
       eChook: {},
+
+      // UI-only state (new design)
+      tab: "overview",
+      activeWizard: null,
+      sendModalOpen: false,
+      resetModalOpen: false,
+      restoreModalOpen: false,
+      restoreParsedData: null,
+      toast: "",
+      multimeterOffset: 0,
     };
   },
   created() {
@@ -194,6 +212,13 @@ export default {
     this.eChook = ext.dataTemplate.eChook;
   },
   computed: {
+    navItems() {
+      return [
+        { id: "overview", label: "Overview", icon: Bolt },
+        { id: "settings", label: "Settings", icon: Gear },
+        { id: "backup", label: "Backup", icon: Archive },
+      ];
+    },
     sendCalText() {
       let text = "";
       if (!this.changeCount) {
@@ -234,7 +259,7 @@ export default {
 
       return Object.entries(this.eChook)
         .filter(([_, item]) => {
-          return item.title && !item.hidden && !(this.deviceType === "Nano Every" && item.title === "Reference Voltage");
+          return item.title && !item.hidden;
         })
         .map(([key, item]) => ({ key, item }))
         .sort((a, b) => {
@@ -244,14 +269,247 @@ export default {
           return a.item.title.localeCompare(b.item.title);
         });
     },
-    leftColumnItems() {
-      return this.orderedDisplayItems.filter(({ item }) => !item.calibratable);
+
+    // --- New design's version/lock/5V-rail-field logic -------------------------------
+    // Comms V1 boards do report a version, but only as major.minor in the legacy
+    // `[v..]` packet, which this tool does not currently decode. Treat V1 as
+    // "version unknown": show "-" + update-available, and leave magnets editable
+    // rather than assume the firmware-2.1+ single-magnet constraint applies.
+    // Comms V2 boards report major, minor and patch as raw bytes in the 0x81
+    // response; handleV25Packet below records them into `firmwareVersion`.
+    swVersionDisplay() {
+      if (this.protocolVersion !== 2 || !this.firmwareVersion) return "-";
+      const v = this.firmwareVersion;
+      return `${v.major}.${v.minor}.${v.patch}`;
     },
-    rightColumnItems() {
-      return this.orderedDisplayItems.filter(({ item }) => item.calibratable);
+    updateAvailable() {
+      if (this.protocolVersion !== 2 || !this.firmwareVersion) return true;
+      return compareVersion(this.firmwareVersion, LATEST_FIRMWARE) < 0;
+    },
+    magnetsLocked() {
+      if (this.protocolVersion !== 2 || !this.firmwareVersion) return false;
+      return compareVersion(this.firmwareVersion, MAGNETS_LOCKED_FROM) >= 0;
+    },
+    // `referenceVoltage` (identifier "V") is the only live-decoded rail-voltage
+    // field, used the same way by both board types. `referenceVoltageStatic`
+    // ("Fallback Rail Voltage") has no identifier - it's a stored fallback the
+    // firmware uses internally, not something the UI calibrates live.
+    fiveVoltField() {
+      return "referenceVoltage";
+    },
+    fiveVoltLive() {
+      const field = this.eChook[this.fiveVoltField];
+      return field ? field.value : 0;
+    },
+
+    // --- Wizard step builders ----------------------------------------------------
+    wizardCtx() {
+      const self = this;
+      return {
+        name: computed(() => self.eChook.bluetoothName.value),
+        setName: (v) => {
+          self.eChook.bluetoothName.value = v;
+          self.checkChange();
+        },
+        binary: computed(() => ({
+          variableThrottle: !!self.eChook.binary.variableThrottle.value,
+          throttleOut: !!self.eChook.binary.throttleOut.value,
+          throttleRamp: !!self.eChook.binary.throttleRamp.value,
+        })),
+        setBinary: (key, v) => {
+          self.eChook.binary[key].value = v ? 1 : 0;
+          self.checkChange();
+        },
+        magnetsLocked: computed(() => self.magnetsLocked),
+        speedMagnets: computed(() => self.eChook.speed.calibration.magnets.value),
+        setSpeedMagnets: (v) => {
+          self.eChook.speed.calibration.magnets.value = v;
+          self.checkChange();
+        },
+        rpmMagnets: computed(() => self.eChook.rpm.calibration.magnets.value),
+        setRpmMagnets: (v) => {
+          self.eChook.rpm.calibration.magnets.value = v;
+          self.checkChange();
+        },
+        circumference: computed(() => self.eChook.speed.calibration.circumference.value),
+        setCircumference: (v) => {
+          self.eChook.speed.calibration.circumference.value = v;
+          self.checkChange();
+        },
+        voltageScale: computed(() => self.eChook.voltage.calibration.multiplier.value),
+        voltageLowerScale: computed(() => self.eChook.voltageLower.calibration.multiplier.value),
+        live: computed(() => ({
+          speed: self.eChook.speed.value,
+          rpm: self.eChook.rpm.value,
+          fiveVoltRail: self.fiveVoltLive,
+        })),
+        multimeterOffset: computed(() => self.multimeterOffset),
+        setMultimeterOffset: (v) => {
+          self.multimeterOffset = v;
+        },
+        multimeterReading: computed(() => Number(self.fiveVoltLive) + self.multimeterOffset),
+        exitToFiveVolt: () => {
+          self.activeWizard = "fiveVoltRail";
+        },
+      };
+    },
+    setupSteps() {
+      return buildSetupSteps(this.wizardCtx);
+    },
+    speedWizardSteps() {
+      return buildSpeedWizardSteps(this.wizardCtx);
+    },
+    fiveVoltWizardSteps() {
+      return buildFiveVoltWizardSteps(this.wizardCtx);
+    },
+    voltageWizardSteps() {
+      const which = this.activeWizard === "voltage-total" ? "total" : "lower";
+      return buildVoltageWizardSteps(this.wizardCtx, which);
     },
   },
   methods: {
+    // --- New design's UI-only orchestration --------------------------------------
+    showToast(msg) {
+      this.toast = msg;
+      setTimeout(() => {
+        this.toast = "";
+      }, 2800);
+    },
+    openWizard(id) {
+      this.activeWizard = id;
+    },
+    openVoltageWizard(which) {
+      this.activeWizard = which === "total" ? "voltage-total" : "voltage-lower";
+    },
+    closeWizard() {
+      this.activeWizard = null;
+    },
+    finishSetupWizard() {
+      this.activeWizard = null;
+      this.showToast("Setup complete — remember to send changes.");
+    },
+    finishSpeedWizard() {
+      this.activeWizard = null;
+      this.showToast("Speed sensor calibrated — remember to send changes.");
+    },
+    finishFiveVoltWizard() {
+      const field = this.eChook[this.fiveVoltField];
+      const ratio = this.wizardCtx.multimeterReading.value / Number(this.fiveVoltLive || 5);
+      const cal = field.calibration.voltage;
+      cal.value = (Number(cal.value) * ratio).toFixed(cal.precision != null ? cal.precision : 2);
+      this.multimeterOffset = 0;
+      this.checkChange();
+      this.activeWizard = null;
+      this.showToast("5V rail calibrated — remember to send changes.");
+    },
+    finishVoltageWizard() {
+      const which = this.activeWizard === "voltage-total" ? "total" : "lower";
+      const label = which === "total" ? "Voltage (Total)" : "Voltage (Lower)";
+      const cal = which === "total" ? this.eChook.voltage.calibration.multiplier : this.eChook.voltageLower.calibration.multiplier;
+      const newScale = (Number(cal.value) * (5.0 / Number(this.fiveVoltLive || 5))).toFixed(cal.precision != null ? cal.precision : 2);
+      cal.value = newScale;
+      this.checkChange();
+      this.activeWizard = null;
+      this.showToast(`${label} calibrated — remember to send changes.`);
+    },
+    buildDiffs() {
+      const diffs = [];
+      if (this.eChook.bluetoothName.value !== this.eChook.bluetoothName.old) {
+        diffs.push({ label: "Board Name", from: this.eChook.bluetoothName.old, to: this.eChook.bluetoothName.value });
+      }
+      for (const key in this.eChook.binary) {
+        const b = this.eChook.binary[key];
+        if (b.value !== b.old) {
+          diffs.push({ label: b.name, from: b.old ? b.op1 : b.op2, to: b.value ? b.op1 : b.op2 });
+        }
+      }
+      for (const itemKey in this.eChook) {
+        const item = this.eChook[itemKey];
+        if (Object.prototype.hasOwnProperty.call(item, "calibration")) {
+          for (const calKey in item.calibration) {
+            const c = item.calibration[calKey];
+            if (c.value != c.old && (c.floatIndex != null || c.name)) {
+              diffs.push({ label: c.name || item.title, from: c.old, to: c.value });
+            }
+          }
+        }
+      }
+      return diffs;
+    },
+    async confirmSend() {
+      await this.serialSendAllCal();
+      // Reflect the just-sent values as the new baseline so the pending-change
+      // count/diff view clears (protocol logic itself is untouched above).
+      if (this.eChook.bluetoothName.value !== this.eChook.bluetoothName.old) {
+        this.eChook.bluetoothName.old = this.eChook.bluetoothName.value;
+      }
+      for (const key in this.eChook.binary) {
+        this.eChook.binary[key].old = this.eChook.binary[key].value;
+      }
+      for (const itemKey in this.eChook) {
+        const item = this.eChook[itemKey];
+        if (Object.prototype.hasOwnProperty.call(item, "calibration")) {
+          for (const calKey in item.calibration) {
+            item.calibration[calKey].old = item.calibration[calKey].value;
+          }
+        }
+      }
+      this.checkChange();
+      this.sendModalOpen = false;
+      this.showToast("Changes written to eChook.");
+    },
+    confirmReset() {
+      this.resetModalOpen = false;
+      this.resetEchook();
+      this.showToast("Reset to factory defaults. Unplug and reconnect to continue.");
+    },
+    handleRestoreFileSelected(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          this.restoreParsedData = JSON.parse(reader.result);
+          this.restoreModalOpen = true;
+        } catch (err) {
+          this.showToast("Could not read that backup file.");
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = null;
+    },
+    confirmRestore() {
+      this.restoreModalOpen = false;
+      this.applyRestoredData(this.restoreParsedData);
+      this.restoreParsedData = null;
+      this.showToast("Backup loaded — review then send changes.");
+    },
+    applyRestoredData(newCal) {
+      for (let item in this.eChook) {
+        if (Object.hasOwn(newCal, item)) {
+          if (item === "binary") {
+            for (let sub in this.eChook[item]) {
+              if (Object.hasOwn(newCal[item], sub)) {
+                this.eChook[item][sub].value = newCal[item][sub].value ? 1 : 0;
+              }
+            }
+          } else if (item === "bluetoothName") {
+            if (Object.hasOwn(newCal[item], "value")) {
+              this.eChook[item].value = newCal[item].value;
+            }
+          } else if (Object.hasOwn(newCal[item], "calibration")) {
+            for (let cal in this.eChook[item].calibration) {
+              if (Object.hasOwn(newCal[item].calibration, cal)) {
+                this.eChook[item].calibration[cal].value = newCal[item].calibration[cal].value;
+              }
+            }
+          }
+        }
+      }
+      this.checkChange();
+    },
+
+    // --- Everything below is unchanged serial/protocol logic ---------------------
     checkChange() {
       this.changeCount = 0;
 
@@ -303,6 +561,7 @@ export default {
         console.log("No port selected");
         return;
       }
+      this.connecting = true;
       // - Wait for the port to open.
       try {
         await this.port.open({ baudRate: 115200 });
@@ -313,6 +572,7 @@ export default {
           window.location.reload();
         }
         this.connectFailed = true;
+        this.connecting = false;
       }
       // Check for success and continue
       if (!this.connectFailed) {
@@ -334,6 +594,7 @@ export default {
       this.waitingForData = false;
       this.protocolVersion = 2;
       this.deviceType = "Mock eChook Nano";
+      this.firmwareVersion = { major: 2, minor: 4, patch: 1 };
 
       // Populate some dummy data
       this.eChook.bluetoothName.value = "Demo-Device-01";
@@ -345,11 +606,16 @@ export default {
 
       // Populate some calibration values
       if (this.eChook.speed && this.eChook.speed.calibration) {
-        this.eChook.speed.calibration.magnets.value = 2;
-        this.eChook.speed.calibration.magnets.old = 2;
+        this.eChook.speed.calibration.magnets.value = 1;
+        this.eChook.speed.calibration.magnets.old = 1;
         this.eChook.speed.calibration.circumference.value = 1.57;
         this.eChook.speed.calibration.circumference.old = 1.57;
         this.eChook.speed.value = "12.50";
+      }
+      if (this.eChook.rpm) {
+        this.eChook.rpm.calibration.magnets.value = 1;
+        this.eChook.rpm.calibration.magnets.old = 1;
+        this.eChook.rpm.value = "3200";
       }
       if (this.eChook.voltage) {
         this.eChook.voltage.value = "25.40";
@@ -358,27 +624,41 @@ export default {
           this.eChook.voltage.calibration.multiplier.old = 11.0;
         }
       }
+      if (this.eChook.voltageLower) {
+        this.eChook.voltageLower.value = "12.80";
+        if (this.eChook.voltageLower.calibration) {
+          this.eChook.voltageLower.calibration.multiplier.value = 11.0;
+          this.eChook.voltageLower.calibration.multiplier.old = 11.0;
+        }
+      }
       if (this.eChook.current) {
         this.eChook.current.value = "15.20";
         if (this.eChook.current.calibration) {
-          this.eChook.current.calibration.multiplier.value = 0.05;
-          this.eChook.current.calibration.multiplier.old = 0.05;
+          this.eChook.current.calibration.multiplier.value = 14.3;
+          this.eChook.current.calibration.multiplier.old = 14.3;
         }
       }
+      if (this.eChook.referenceVoltage) {
+        this.eChook.referenceVoltage.value = "4.97";
+        this.eChook.referenceVoltage.calibration.voltage.value = 1.08;
+        this.eChook.referenceVoltage.calibration.voltage.old = 1.08;
+      }
+      if (this.eChook.throttleVoltage) this.eChook.throttleVoltage.value = "2.10";
+      if (this.eChook.throttleInput) this.eChook.throttleInput.value = "48.2";
+      if (this.eChook.temp1) this.eChook.temp1.value = "24";
+      if (this.eChook.temp2) this.eChook.temp2.value = "23";
 
       this.checkChange();
       console.log("Mock Connection Started");
     },
     resetEchook() {
-      if (confirm("This will revert your eChook to default settings. Once done, unplug then reconnect the eChook")) {
-        if (this.protocolVersion === 2) {
-          this.serialWriteV25(0x45, new Uint8Array(0));
-        } else {
-          let data = new Uint8Array(2);
-          let text = "C"; // Clear EEPROM
-          data[0] = text.charCodeAt(0);
-          this.serialWrite(data);
-        }
+      if (this.protocolVersion === 2) {
+        this.serialWriteV25(0x45, new Uint8Array(0));
+      } else {
+        let data = new Uint8Array(2);
+        let text = "C"; // Clear EEPROM
+        data[0] = text.charCodeAt(0);
+        this.serialWrite(data);
       }
     },
     async disconnectPort() {
@@ -728,6 +1008,9 @@ export default {
     },
     //Serial Write Functions
     serialWrite(data) {
+      // No real port in Demo Mode - no-op instead of throwing so the demo flow
+      // (send/reset) stays testable without hardware.
+      if (!this.port) return;
       try {
         this.writer = this.port.writable.getWriter();
       } catch (e) {
@@ -753,8 +1036,10 @@ export default {
     },
     handleV25Packet(type, data) {
       if (type === 0x81) {
-        if (data.length >= 6) {
-          this.deviceType = data[5] === 1 ? "Nano Every" : "Standard Nano";
+        // Payload is four raw bytes: major, minor, patch, board type.
+        if (data.length >= 4) {
+          this.firmwareVersion = { major: data[0], minor: data[1], patch: data[2] };
+          this.deviceType = data[3] === 1 ? "Nano Every" : "Standard Nano";
         }
         if (this.waitingForData) {
           this.waitingForData = 0;
@@ -940,59 +1225,6 @@ export default {
         }
       }
     },
-    async backupRestore() {
-      // var t = this;
-      console.log(`Entering Restore`);
-
-      // var localFile = $refs.jsonFile.files[0];
-      const [file] = document.querySelector("input[type=file]").files;
-      let reader = new FileReader();
-
-      reader.addEventListener("load", () => {
-        // console.log(`File Loaded`);
-        // console.log(`File Imported \n ${reader.result}`);
-        // Now to check and restore backup...
-        let newCal = JSON.parse(reader.result);
-        for (let item in this.eChook) {
-          if (Object.hasOwn(newCal, item)) {
-            if (item === "binary") {
-              for (let sub in this.eChook[item]) {
-                if (Object.hasOwn(newCal[item], sub)) {
-                  this.eChook[item][sub].value = newCal[item][sub].value ? 1 : 0;
-                }
-              }
-            } else if (item === "bluetoothName") {
-              if (Object.hasOwn(newCal[item], 'value')) {
-                this.eChook[item].value = newCal[item].value;
-              }
-            } else if (Object.hasOwn(newCal[item], "calibration")) {
-              // console.log(`Cal object Found`);
-              for (let cal in this.eChook[item].calibration) {
-                // console.log(
-                //   `Comparing new: ${JSON.stringify(
-                //     newCal[item].calibration[cal]
-                //   )} with ${JSON.stringify(this.eChook[item].calibration[cal])}`
-                // );
-                if (Object.hasOwn(newCal[item].calibration, cal)) {
-                  // console.log(
-                  //   `Updating ${cal} with ${newCal[item].calibration[cal].value}`
-                  // );
-                  this.eChook[item].calibration[cal].value =
-                    newCal[item].calibration[cal].value;
-                }
-              }
-            }
-          }
-          // console.log(`Item: ${item}`);
-        }
-        document.getElementById("fileButton").value = null;
-        this.checkChange();
-      });
-
-      if (file) {
-        reader.readAsText(file);
-      }
-    },
     getDmyString(timestamp) {
       let date = new Date();
       date.setTime(timestamp);
@@ -1007,409 +1239,37 @@ export default {
 };
 </script>
 
-<style lang="scss">
-.background {
-  padding: 20px;
-  margin: 0;
-  position: fixed;
-  top: 70px;
-  left: 0px;
-  width: 100vw;
-  height: Calc(100vh - 70px);
-  overflow-y: scroll;
-  background: var(--bg-gradient);
-  border-top: 1px solid var(--glass-border);
-}
-
-.overlay {
-  text-align: center;
-  margin: 100px auto;
-  width: 500px;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  padding: 60px 80px 40px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-}
-
-.info-large {
-  font-family: 'Raleway', sans-serif;
-  font-size: 28px;
-  color: var(--ghost-white);
-  line-height: 1.4;
-  margin-bottom: 30px;
-}
-
-.connect-button {
-  width: 100%;
-  height: 80px;
-  background: var(--rosewood);
-  color: var(--ghost-white);
-  font-size: 28px;
-  font-family: 'Oswald', sans-serif;
-  border: none;
-  border-radius: 8px;
-  font-weight: bold;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  transition: all 0.3s ease;
-  box-shadow: none;
-}
-
-.connect-button:hover {
-  cursor: pointer;
-  background: #c53567;
-  transform: translateY(-2px);
-  box-shadow: none;
-}
-
-.connect-button:active {
-  transform: translateY(1px);
-}
-
-.values-container {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  padding-bottom: 120px;
-}
-
-.top-controls {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.75fr) minmax(520px, 1.25fr);
-  gap: 15px;
-  width: 90%;
-  max-width: 1280px;
-  margin: 0 auto;
-}
-
-.cards-grid {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.75fr) minmax(520px, 1.25fr);
-  gap: 15px;
-  width: 90%;
-  max-width: 1280px;
-  margin: 0 auto;
-  align-items: start;
-}
-
-.cards-column {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  min-width: 0;
-}
-
-.left-column {
-  gap: 8px;
-}
-
-.value-container {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  padding: 20px 30px;
-  box-sizing: border-box;
-  background: var(--panel-bg);
-  border-radius: 10px;
-  border: 1px solid var(--panel-border);
-  transition: all 0.3s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.value-container:hover {
-  border: 1px solid var(--pacific-blue);
-  background: var(--panel-bg-hover);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
-}
-
-.value-title {
-  font-size: 1.2em;
-  font-family: 'Oswald', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: var(--pacific-blue);
-  padding-bottom: 10px;
-  margin-bottom: 15px;
-  border-bottom: 1px solid var(--glass-border);
-  flex: 0 0 100%;
-}
-
-.live-value {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 15px 20px;
-  min-width: 140px;
-  margin: 10px;
-  font-size: 26px;
-  font-family: 'Oswald', sans-serif;
-  background: rgba(32, 41, 56, 0.85);
-  border-radius: 6px;
-  color: var(--ghost-white);
-  border: 1px solid var(--panel-border);
-}
-
-.compact-card {
-  padding: 8px 10px;
-}
-
-.compact-card .value-title {
-  font-size: 0.95em;
-  margin-bottom: 6px;
-}
-
-.compact-card .live-value {
-  width: 120px;
-  min-width: 120px;
-  min-height: 120px;
-  margin: 0;
-  font-size: 21px;
-  padding: 8px;
-  justify-content: center;
-  flex-direction: column;
-  text-align: center;
-  line-height: 1.1;
-}
-
-.calibratable-card {
-  padding: 16px 20px;
-}
-
-.calibratable-layout {
-  width: 100%;
-  display: flex;
-  gap: 12px;
-  align-items: start;
-  min-width: 0;
-}
-
-.live-value-square {
-  width: 130px;
-  min-width: 130px;
-  min-height: 130px;
-  margin: 0;
-  padding: 12px;
-  flex-direction: column;
-  text-align: center;
-  gap: 6px;
-  box-sizing: border-box;
-}
-
-.reading-value {
-  font-size: 30px;
-  line-height: 1;
-}
-
-.reading-unit {
-  font-size: 18px;
-  opacity: 0.9;
-}
-
-.calibration-stack {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.calibration-stack .live-calibration {
-  width: 100%;
-  margin: 0;
-}
-
-.binary-cal-container {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  width: 100%;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--glass-border);
-
-  .title {
-    flex: 1;
-  }
-}
-
-.binary-option {
-  margin: 0 8px;
-  width: 120px;
-  text-align: center;
-  background: rgba(238, 241, 246, 0.1);
-  padding: 8px 15px;
-  border-radius: 5px;
-  font-weight: bold;
-  color: var(--ghost-white);
-  transition: all 0.2s ease;
-  font-size: 14px;
-}
-
-.binary-option:hover {
-  cursor: pointer;
-  background: rgba(238, 241, 246, 0.2);
-}
-
-.binary-cal-container .active {
-  background: var(--pacific-blue);
-  color: var(--ghost-white);
-  box-shadow: none;
-}
-
-.live-calibration {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 8px;
-  padding: 8px 15px;
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 5px;
-  border: 1px solid transparent;
-  box-sizing: border-box;
-}
-
-.changed {
-  background: rgba(246, 174, 45, 0.1);
-  border: 1px solid var(--honey-bronze);
-  box-shadow: none;
-}
-
-.cal-input {
-  height: 32px;
-  background: var(--app-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 4px;
-  color: var(--ghost-white);
-  text-align: center;
-  width: 100px;
-  font-family: 'Oswald', sans-serif;
-  font-size: 16px;
-}
-
-.cal-input:focus {
-  outline: none;
-  border-color: var(--pacific-blue);
-  box-shadow: none;
-}
-
-.bottom-menu {
-  position: fixed;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  background: rgba(17, 21, 29, 0.95);
-  border-top: 1px solid var(--glass-border);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 15px 0;
-  z-index: 100;
-}
-
-.bottom-menu .button {
-  margin: 0 12px;
-  padding: 12px 24px;
-  border-radius: 6px;
-  font-weight: bold;
-  font-size: 16px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  transition: all 0.3s ease;
-  font-family: 'Oswald', sans-serif;
-}
-
-.bottom-menu .disconnect {
-  background: var(--dark-slate-grey);
-  color: var(--ghost-white);
-}
-
-.bottom-menu .disconnect:hover {
-  background: #5a6478;
-}
-
-.bottom-menu .send-data {
-  background: var(--rosewood);
-  color: var(--ghost-white);
-  box-shadow: none;
-}
-
-.bottom-menu .send-data:hover {
-  background: #c53567;
-  transform: translateY(-2px);
-}
-
-.button:hover {
-  cursor: pointer;
-  user-select: none;
-}
-
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-input[type="number"] {
-  appearance: textfield;
-  -moz-appearance: textfield;
-}
-
-.tools-background {
-  z-index: 3;
-  top: 0px;
-  position: fixed;
-  width: 100vw;
+<style scoped>
+.app-shell {
   height: 100vh;
-  background-color: rgba(17, 21, 29, 0.85);
-  padding: 20vh 20vw;
+  display: flex;
+  flex-direction: column;
+  background: var(--app-bg);
+  color: var(--app-text);
+  overflow: hidden;
 }
-
-.tools-container {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  width: 60vw;
-  height: 60vh;
-  padding: 30px;
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
 }
-
-.demo-trigger {
-  margin-top: 20px;
-  color: var(--ghost-white);
-  opacity: 0.3;
-  font-size: 12px;
-  cursor: pointer;
-  text-decoration: underline;
-  transition: opacity 0.3s;
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
-
-.demo-trigger:hover {
-  opacity: 0.8;
+.app-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px 40px;
 }
-
-@media (max-width: 1100px) {
-  .top-controls {
-    grid-template-columns: 1fr;
-  }
-
-  .cards-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 760px) {
-  .calibratable-layout {
-    flex-direction: column;
-  }
-
-  .live-value-square {
-    width: 100%;
-    min-width: 0;
-    min-height: 88px;
-  }
+.diff-list {
+  margin-top: 12px;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--neutral-700);
+  border-radius: var(--radius-sm);
+  padding: 4px 12px;
 }
 </style>

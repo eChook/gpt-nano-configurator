@@ -1,0 +1,29 @@
+:root {
+  --text-micro: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-body: 14px;
+  --text-md: 15px;
+  --text-lg: 16px;
+  --text-title: 18px;
+  --text-page: 20px;
+  --text-2xl: 24px;
+  --text-panel: 30px;
+  --text-display: 36px;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --leading-tight: 1.1;
+  --leading-snug: 1.4;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.6;
+
+  --tracking-tight: -.01em;
+  --tracking-wide: .06em;
+  --tracking-wider: .08em;
+  --tracking-widest: .1em;
+}

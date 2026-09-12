@@ -64,16 +64,16 @@ var dataTemplate = {
             },
         },
         referenceVoltageStatic: {
-            title: "Reference Voltage",
+            title: "Fallback Rail Voltage",
             precision: 2,
             units: "V",
             value: null,
-            identifier: "V",
+            identifier: null,
             calibratable: 1,
             hidden: 1,
             calibration: {
                 voltage: {
-                    name: "Internal Reference",
+                    name: "Fallback Rail Voltage",
                     precision: 2,
                     unit: "Volts",
                     value: null,
@@ -82,7 +82,7 @@ var dataTemplate = {
                     floatIndex: 3,
                 },
             },
-            helper: "The older Arduino Nanos can measure the rail voltage vs a stable ~1.1v internal reference. The Arduino Nano Every can't do this. Tweak the internal reference voltage until the reading matches the multimeter measured voltage on the +5V test point on the board.",
+            helper: "Only used by the Arduino Nano Every, and only when a live rail measurement fails its sanity check. The board falls back to this stored value instead of a measured one. Leave it at 5.00 unless you know this board's rail sits elsewhere.",
         },
         referenceVoltage: {
             title: "Reference Voltage",
@@ -102,7 +102,7 @@ var dataTemplate = {
                     floatIndex: 16,
                 },
             },
-            helper: "The older Arduino Nanos can measure the rail voltage vs a stable ~1.1v internal reference. The Arduino Nano Every can't do this. Tweak the internal reference voltage until the reading matches the multimeter measured voltage on the +5V test point on the board.",
+            helper: "Both the Nano and the Nano Every measure the +5V rail against a stable ~1.1v internal reference. Tweak that internal reference value until the reading matches the multimeter measured voltage on the +5V test point on the board.",
         },
         speed: {
             title: "Speed",
