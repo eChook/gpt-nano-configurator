@@ -126,16 +126,27 @@ import Toast from "./nano/Toast.vue";
 import { Bolt, Gear, Archive } from "./icons/nanoIcons";
 import { buildSetupSteps, buildSpeedWizardSteps, buildFiveVoltWizardSteps, buildVoltageWizardSteps } from "./nano/wizardSteps.js";
 
-// Latest published firmware, as major.minor.patch. Bump on each firmware
-// release, or read it from the release manifest once one is published.
-const LATEST_FIRMWARE = { major: 2, minor: 4, patch: 3 };
+// Fallback "latest firmware" used until the GitHub releases API responds (or
+// if it fails), and as the floor if a malformed release tag is ever published.
+const LATEST_FIRMWARE_FALLBACK = { major: 2, minor: 4, patch: 2 };
 
 // Firmware from which a single wheel magnet is required.
 const MAGNETS_LOCKED_FROM = { major: 2, minor: 1, patch: 0 };
 
+const LATEST_RELEASE_API_URL = "https://api.github.com/repos/eChook/eChook-Arduino-Nano/releases/latest";
+const LATEST_RELEASE_CACHE_KEY = "echook.latestFirmwareCache";
+const LATEST_RELEASE_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
 // Comparator over {major, minor, patch}: negative if a is older than b.
 function compareVersion(a, b) {
   return (a.major - b.major) || (a.minor - b.minor) || (a.patch - b.patch);
+}
+
+// Parses a GitHub release tag like "v2.4.3" or "2.4.3" into {major, minor, patch}.
+function parseVersionTag(tag) {
+  const match = /(\d+)\.(\d+)\.(\d+)/.exec(tag || "");
+  if (!match) return null;
+  return { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) };
 }
 
 export default {
@@ -188,6 +199,7 @@ export default {
       protocolVersion: 1,
       deviceType: "Unknown",
       firmwareVersion: null,
+      latestFirmware: { ...LATEST_FIRMWARE_FALLBACK },
       ackResolver: null,
       eChook: {},
 
@@ -210,6 +222,7 @@ export default {
   mounted() {
     // Copy external data template to the Vue data object
     this.eChook = ext.dataTemplate.eChook;
+    this.fetchLatestFirmware();
   },
   computed: {
     navItems() {
@@ -284,7 +297,7 @@ export default {
     },
     updateAvailable() {
       if (this.protocolVersion !== 2 || !this.firmwareVersion) return true;
-      return compareVersion(this.firmwareVersion, LATEST_FIRMWARE) < 0;
+      return compareVersion(this.firmwareVersion, this.latestFirmware) < 0;
     },
     magnetsLocked() {
       if (this.protocolVersion !== 2 || !this.firmwareVersion) return false;
@@ -368,6 +381,43 @@ export default {
     },
   },
   methods: {
+    // Fetches the latest published firmware version from the GitHub releases
+    // API, caching the result in localStorage so a page reload doesn't refetch
+    // within LATEST_RELEASE_CACHE_TTL_MS. Falls back to LATEST_FIRMWARE_FALLBACK
+    // (already the default in `data()`) on any error or malformed response.
+    async fetchLatestFirmware() {
+      try {
+        const cachedRaw = localStorage.getItem(LATEST_RELEASE_CACHE_KEY);
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw);
+          if (cached && cached.version && Date.now() - cached.fetchedAt < LATEST_RELEASE_CACHE_TTL_MS) {
+            this.latestFirmware = cached.version;
+            return;
+          }
+        }
+      } catch (e) {
+        // Ignore unreadable/corrupt cache and fall through to a live fetch.
+      }
+
+      try {
+        const response = await fetch(LATEST_RELEASE_API_URL, {
+          headers: { Accept: "application/vnd.github+json" },
+        });
+        if (!response.ok) return;
+        const release = await response.json();
+        const version = parseVersionTag(release.tag_name);
+        if (!version) return;
+
+        this.latestFirmware = version;
+        localStorage.setItem(
+          LATEST_RELEASE_CACHE_KEY,
+          JSON.stringify({ version, fetchedAt: Date.now() })
+        );
+      } catch (e) {
+        // Network error, CORS failure, rate limit, etc. - keep the fallback version.
+      }
+    },
+
     // --- New design's UI-only orchestration --------------------------------------
     showToast(msg) {
       this.toast = msg;
