@@ -1222,6 +1222,8 @@ export default {
       command[1] = text.charCodeAt(1);
 
       this.serialWrite(command);
+      // Give the Nano time to enter its receive loop: the 80 bytes overflow its 64-byte buffer if it is busy when they arrive.
+      await new Promise(resolve => setTimeout(resolve, 50));
       this.serialWrite(data);
     },
     async serialSendBinaryData() {
